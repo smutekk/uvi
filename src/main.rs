@@ -119,6 +119,8 @@ fn unpack(file_to_unpack: &Path, destination: &Path) {
         let mut archive = Archive::new(decompressor);
 
         archive.unpack(destination).expect("Failed");
+
+        if destination1
     }
 }
 // // fn deb() {}
