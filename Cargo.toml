@@ -1,0 +1,13 @@
+[package]
+edition = "2024"
+name = "uvi"
+version = "0.0.1"
+authors = ["kkettums"]
+
+[dependencies]
+clap = { version = "4.5", features = ["derive"] }
+reqwest = { version = "0.11", features = ["blocking"] }
+flate2 = "1.0"
+tar = "0.4"
+xz2 = "0.1"
+git2 = "0.19"
