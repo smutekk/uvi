@@ -1,5 +1,4 @@
 use clap::Parser;
-use fstrings::*;
 use git2::Repository;
 use reqwest::blocking;
 use std::env;
@@ -140,17 +139,22 @@ fn unpack(
 
         install(&destination.join(unpacked_file.to_string()), prefix);
         return Ok(destination.to_path_buf());
+    } else if file_to_unpack.extension().map_or(false, |ext| ext == "zst") {
+        println!("ZST file detected! starting unpack process..");
     }
 
     Err("not an xz".into())
 }
 
-fn install(destination: &Path, install_dir: &Path) {
+fn install(destination: &Path, _install_dir: &Path) {
     let dest_str = destination.to_str();
 
     println!("unpacked file located at: {}", dest_str.unwrap());
 
     if destination.join("meson.build").exists() {
+        if destination.join("Makefile").exists() {
+            println!("Found a Makefile when meson.build exists.. \n Defaulting to meson..");
+        }
         println!("Building with meson..");
 
         let build_dir = destination.join("build");
@@ -162,8 +166,15 @@ fn install(destination: &Path, install_dir: &Path) {
             &build_dir.to_string_lossy(),
             "--prefix=/usr", // not instal_dir/prefix yet
         );
+
+        // compilers::meson::install(
+        //     destination.to_str().unwrap(),
+        //     &build_dir.to
+        // )
+    } else if destination.join("Makefile").exists() && !destination.join("meson.build").exists() {
+        println!("Found a Makefile, building with make..");
     } else {
-        eprintln!("No meson.build found..?");
+        println!("No supported build files found, exiting..");
     }
 }
 
