@@ -125,7 +125,6 @@ fn git_repo(
 
             install(&repo_path, prefix);
         }
-        // Ok(repo) => println!("Sucessfully cloned: {:?}", repo.path()),
         Err(e) => panic!("Failed to clone: {}", e),
     };
 
@@ -183,11 +182,6 @@ fn install(destination: &Path, install_dir: &Path) {
             &build_dir.to_string_lossy(),
             &format!("--prefix=/{inst_str}"), // not instal_dir/prefix yet
         );
-
-        // compilers::meson::install(
-        //     destination.to_str().unwrap(),
-        //     &build_dir.to
-        // )
     } else if destination.join("Makefile").exists() && !destination.join("meson.build").exists() {
         println!("Found a Makefile, building with make..");
 
@@ -201,10 +195,10 @@ fn install(destination: &Path, install_dir: &Path) {
     } else {
         println!("No supported build files found, exiting..");
     }
+
+    println!("Finished installing, installed to: {inst_str}");
 }
 
 // // fn deb() {}
 
 // // fn rpm() {}
-
-// fn git(destination: &Path) {}
