@@ -1,7 +1,6 @@
 use clap::Parser;
 use git2::Repository;
 use reqwest::blocking;
-use std::any::Any;
 use std::env;
 use std::fs::File;
 use std::io::copy;
@@ -10,7 +9,7 @@ use std::path::PathBuf;
 use tar::Archive;
 use xz2::read::XzDecoder;
 // use zstd::stream;
-use bzip2::read::{BzDecoder, BzEncoder};
+use bzip2::read::BzDecoder;
 
 mod compilers;
 
@@ -154,6 +153,7 @@ fn unpack(
         println!("BZ file detected! starting unpack proces..");
 
         let decompressor = BzDecoder::new(file);
+
         //TODO
     }
 
