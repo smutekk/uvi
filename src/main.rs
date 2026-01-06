@@ -1,6 +1,7 @@
 use clap::Parser;
 use git2::Repository;
 use reqwest::blocking;
+use std::any::Any;
 use std::env;
 use std::fs::File;
 use std::io::copy;
@@ -8,6 +9,8 @@ use std::path::Path;
 use std::path::PathBuf;
 use tar::Archive;
 use xz2::read::XzDecoder;
+// use zstd::stream;
+use bzip2::read::{BzDecoder, BzEncoder};
 
 mod compilers;
 
@@ -134,10 +137,10 @@ fn unpack(
     destination: &Path,
     prefix: &Path,
 ) -> Result<PathBuf, Box<dyn std::error::Error>> {
+    let file = File::open(file_to_unpack)?;
+
     if file_to_unpack.extension().map_or(false, |ext| ext == "xz") {
         println!("XZ file detected! starting unpack process..");
-
-        let file = File::open(file_to_unpack)?;
 
         let decompressor = XzDecoder::new(file);
         let mut archive = Archive::new(decompressor);
@@ -145,8 +148,13 @@ fn unpack(
         archive.unpack(destination)?;
     } else if file_to_unpack.extension().map_or(false, |ext| ext == "zst") {
         println!("ZST file detected! starting unpack process..");
+
+        // stream::copy_decode(file, destination)?; //not working
     } else if file_to_unpack.extension().map_or(false, |ext| ext == "bz") {
         println!("BZ file detected! starting unpack proces..");
+
+        let decompressor = BzDecoder::new(file);
+        //TODO
     }
 
     let unpacked_file = file_to_unpack
