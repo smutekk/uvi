@@ -190,6 +190,14 @@ fn install(destination: &Path, install_dir: &Path) {
         // )
     } else if destination.join("Makefile").exists() && !destination.join("meson.build").exists() {
         println!("Found a Makefile, building with make..");
+
+        compilers::make::build(
+            destination.to_str().unwrap(),
+            &build_dir.to_string_lossy(),
+            &format!("--prefix=/{inst_str}"),
+        );
+
+        println!("done?")
     } else {
         println!("No supported build files found, exiting..");
     }
