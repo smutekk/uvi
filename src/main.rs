@@ -35,7 +35,7 @@ struct Args {
     #[arg(long)]
     systemd: bool,
 
-    #[arg(long, default_value = "none")]
+    #[arg(long, default_value = "aur")]
     repo: String,
 }
 
@@ -143,20 +143,22 @@ fn unpack(
         let mut archive = Archive::new(decompressor);
 
         archive.unpack(destination)?;
-
-        let unpacked_file = file_to_unpack
-            .file_stem()
-            .and_then(|s| Path::new(s).file_stem())
-            .and_then(|s| s.to_str())
-            .unwrap_or("default");
-
-        install(&destination.join(unpacked_file.to_string()), prefix);
-        return Ok(destination.to_path_buf());
     } else if file_to_unpack.extension().map_or(false, |ext| ext == "zst") {
         println!("ZST file detected! starting unpack process..");
+    } else if file_to_unpack.extension().map_or(false, |ext| ext == "bz") {
+        println!("BZ file detected! starting unpack proces..");
     }
 
-    Err("not an xz".into())
+    let unpacked_file = file_to_unpack
+        .file_stem()
+        .and_then(|s| Path::new(s).file_stem())
+        .and_then(|s| s.to_str())
+        .unwrap_or("default");
+
+    install(&destination.join(unpacked_file.to_string()), prefix);
+    // return Ok(destination.to_path_buf());
+
+    Err("File ext. not supported.".into())
 }
 
 fn install(destination: &Path, install_dir: &Path) {
