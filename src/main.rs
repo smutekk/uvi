@@ -60,28 +60,26 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cache = Path::new(&home_path).join(".cache");
     let file_path = cache.join(filename);
 
+    let query = args.name.as_str();
+
+    if query.ends_with(".git") {
+        git_repo(query, Path::new(&file_path), target_destination)?;
+    } else {
+        println!("Downloading: {query}");
+    }
     if args.user {
         target_destination = Path::new(&home_path); //get username
     }
     if args.link {
-        println!("Using url: {}", args.name.as_str());
-        if args.name.as_str().ends_with(".git") {
-            git_repo(
-                args.name.as_str(),
-                Path::new(&file_path),
-                target_destination,
-            )?;
-        } else {
-            download(
-                args.name.as_str(),
-                Path::new(&file_path),
-                Path::new(&cache),
-                target_destination,
-            )?;
-        }
-        // soo easy
+        println!("Using url: {}", query);
+        download(
+            query,
+            Path::new(&file_path),
+            Path::new(&cache),
+            target_destination,
+        )?;
     } else {
-        println!("Package to download is: {}", args.name.as_str());
+        println!("Package to download is: {}", query);
         // bit harder
     }
 
