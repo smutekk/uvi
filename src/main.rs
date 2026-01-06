@@ -66,7 +66,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     if args.link {
         println!("Using url: {}", args.name.as_str());
         if args.name.as_str().ends_with(".git") {
-            git_repo(args.name.as_str(), Path::new(&file_path))?;
+            git_repo(
+                args.name.as_str(),
+                Path::new(&file_path),
+                target_destination,
+            )?;
         } else {
             download(
                 args.name.as_str(),
@@ -105,11 +109,23 @@ fn download(
     Ok(())
 }
 
-fn git_repo(url: &str, destination: &Path) -> Result<(), Box<dyn std::error::Error>> {
+fn git_repo(
+    url: &str,
+    destination: &Path,
+    prefix: &Path,
+) -> Result<(), Box<dyn std::error::Error>> {
     println!("Cloning {} into {:?}..", url, destination);
 
     match Repository::clone(url, destination) {
-        Ok(repo) => println!("Sucessfully cloned: {:?}", repo.path()),
+        Ok(repo) => {
+            let mut dir_work = repo.workdir();
+            let repo_path = dir_work.get_or_insert_with(|| Path::new("/tmp"));
+
+            println!("Sucessfully cloned: {:?}", repo_path);
+
+            install(&repo_path, prefix);
+        }
+        // Ok(repo) => println!("Sucessfully cloned: {:?}", repo.path()),
         Err(e) => panic!("Failed to clone: {}", e),
     };
 
@@ -146,10 +162,13 @@ fn unpack(
     Err("not an xz".into())
 }
 
-fn install(destination: &Path, _install_dir: &Path) {
+fn install(destination: &Path, install_dir: &Path) {
     let dest_str = destination.to_str();
+    let inst_str = install_dir.to_string_lossy();
 
     println!("unpacked file located at: {}", dest_str.unwrap());
+
+    let build_dir = destination.join("build");
 
     if destination.join("meson.build").exists() {
         if destination.join("Makefile").exists() {
@@ -157,14 +176,12 @@ fn install(destination: &Path, _install_dir: &Path) {
         }
         println!("Building with meson..");
 
-        let build_dir = destination.join("build");
-
         println!("Build directory is: {}", build_dir.to_string_lossy());
 
         compilers::meson::build(
             destination.to_str().unwrap(),
             &build_dir.to_string_lossy(),
-            "--prefix=/usr", // not instal_dir/prefix yet
+            &format!("--prefix=/{inst_str}"), // not instal_dir/prefix yet
         );
 
         // compilers::meson::install(
