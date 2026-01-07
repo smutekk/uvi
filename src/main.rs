@@ -37,7 +37,7 @@ struct Args {
     #[arg(long)]
     systemd: bool,
 
-    #[arg(long, default_value = "aur")]
+    #[arg(long, default_value = "https://aur.archlinux.org/")]
     repo: String,
 }
 
@@ -63,9 +63,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let file_path = cache.join(filename);
 
     let query = args.name.as_str();
+    let repo = args.repo.as_str();
 
     if query.ends_with(".git") {
-        git_repo(query, Path::new(&file_path), target_destination)?;
+        git_repo(query, Path::new(&file_path), target_destination, &cache)?;
     } else {
         println!("Downloading: {query}");
     }
@@ -82,7 +83,24 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         )?;
     } else {
         println!("Package to download is: {}", query);
-        // bit harder
+
+        println!("{}", format!("Using url: {repo}{query}"));
+
+        if repo == "https://aur.archlinux.org/" {
+            git_repo(
+                &format!("{repo}{query}.git"),
+                Path::new(&file_path),
+                target_destination,
+                &cache,
+            )?;
+        }
+
+        // download(
+        //     &format!("repo{query}"),
+        //     &file_path,
+        //     &cache,
+        //     target_destination,
+        // )?;
     }
 
     println!("Home dir is: {:?}", home_path);
@@ -113,6 +131,7 @@ fn git_repo(
     url: &str,
     destination: &Path,
     prefix: &Path,
+    cache: &Path,
 ) -> Result<(), Box<dyn std::error::Error>> {
     println!("Cloning {} into {:?}..", url, destination);
 
@@ -123,7 +142,7 @@ fn git_repo(
 
             println!("Sucessfully cloned: {:?}", repo_path);
 
-            install(&repo_path, prefix);
+            install(&repo_path, prefix, cache);
         }
         Err(e) => panic!("Failed to clone: {}", e),
     };
@@ -152,7 +171,7 @@ fn unpack(
     } else if file_to_unpack.extension().map_or(false, |ext| ext == "bz") {
         println!("BZ file detected! starting unpack proces..");
 
-        let decompressor = BzDecoder::new(file);
+        let _decompressor = BzDecoder::new(file);
 
         //TODO
     }
@@ -163,13 +182,17 @@ fn unpack(
         .and_then(|s| s.to_str())
         .unwrap_or("default");
 
-    install(&destination.join(unpacked_file.to_string()), prefix);
+    install(
+        &destination.join(unpacked_file.to_string()),
+        prefix,
+        Path::new(""),
+    );
     // return Ok(destination.to_path_buf());
 
     Err("File ext. not supported.".into())
 }
 
-fn install(destination: &Path, install_dir: &Path) {
+fn install(destination: &Path, install_dir: &Path, cache: &Path) {
     let dest_str = destination.to_str();
     let inst_str = install_dir.to_string_lossy();
 
@@ -200,6 +223,10 @@ fn install(destination: &Path, install_dir: &Path) {
         );
 
         println!("done?")
+    } else if destination.join("PKGBUILD").exists() {
+        println!("Found PKGBUILD, building with makepkg..");
+
+        compilers::pkgbuild::build(destination.to_str().unwrap(), cache.to_str().unwrap());
     } else {
         println!("No supported build files found, exiting..");
     }
