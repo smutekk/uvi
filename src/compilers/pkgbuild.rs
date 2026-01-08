@@ -3,13 +3,15 @@ use regex::Regex;
 use std::fs;
 use std::path::Path;
 use std::process::{Command, Stdio};
+use std::str::pattern::SearchStep;
+use zstd::zstd_safe::zstd_sys::ZSTD_cParam_getBounds;
 
 pub fn build(project_dir: &str, cache: &str) -> Result<(), Box<dyn std::error::Error>> {
     make(project_dir, cache)
 }
 
 fn make(project_dir: &str, cache: &str) -> Result<(), Box<dyn std::error::Error>> {
-    let args = vec!["--install", "--noconfirm", "--needed"];
+    let args = vec!["--noconfirm", "--needed"];
     if run(project_dir, "makepkg", &args)? {
         return Ok(());
     }
@@ -32,6 +34,17 @@ fn make(project_dir: &str, cache: &str) -> Result<(), Box<dyn std::error::Error>
 
     run(project_dir, "makepkg", &args)?;
     Ok(())
+}
+
+fn install(name: &str, src: &str, dest: &str) {
+    println!("Installing package to: {}", dest);
+
+    let build_dir = Path::new(src).join("pkg").join(name);
+    let build_str = build_dir.to_string_lossy();
+
+    let args = vec!["-ivr", &build_str, &dest];
+
+    run(src, "cp", &args);
 }
 
 fn run(dir: &str, cmd: &str, args: &[&str]) -> Result<bool, Box<dyn std::error::Error>> {

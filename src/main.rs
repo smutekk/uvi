@@ -142,7 +142,7 @@ fn git_repo(
 
             println!("Sucessfully cloned: {:?}", repo_path);
 
-            install(&repo_path, prefix, cache);
+            install(&repo_path, prefix, cache)?;
         }
         Err(e) => panic!("Failed to clone: {}", e),
     };
@@ -186,13 +186,17 @@ fn unpack(
         &destination.join(unpacked_file.to_string()),
         prefix,
         Path::new(""),
-    );
+    )?;
     // return Ok(destination.to_path_buf());
 
     Err("File ext. not supported.".into())
 }
 
-fn install(destination: &Path, install_dir: &Path, cache: &Path) {
+fn install(
+    destination: &Path,
+    install_dir: &Path,
+    cache: &Path,
+) -> Result<(), Box<dyn std::error::Error>> {
     let dest_str = destination.to_str();
     let inst_str = install_dir.to_string_lossy();
 
@@ -226,12 +230,14 @@ fn install(destination: &Path, install_dir: &Path, cache: &Path) {
     } else if destination.join("PKGBUILD").exists() {
         println!("Found PKGBUILD, building with makepkg..");
 
-        compilers::pkgbuild::build(destination.to_str().unwrap(), cache.to_str().unwrap());
+        compilers::pkgbuild::build(destination.to_str().unwrap(), cache.to_str().unwrap())?;
     } else {
         println!("No supported build files found, exiting..");
     }
 
     println!("Finished installing, installed to: {inst_str}");
+
+    Ok(())
 }
 
 // // fn deb() {}
