@@ -8,6 +8,7 @@
 ### Supported Types
 * .xz
 * .git
+* PKGBUILD
 * Meson packages
 
 ### Future Plans
