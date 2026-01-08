@@ -59,7 +59,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     };
 
-    let cache = Path::new(&home_path).join(".cache");
+    let cache = Path::new(&home_path).join(".cache").join("uvi");
     let file_path = cache.join(filename);
 
     let query = args.name.as_str();
