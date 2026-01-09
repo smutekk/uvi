@@ -3,11 +3,24 @@ use regex::Regex;
 use std::fs;
 use std::path::Path;
 use std::process::{Command, Stdio};
-use std::str::pattern::SearchStep;
-use zstd::zstd_safe::zstd_sys::ZSTD_cParam_getBounds;
 
-pub fn build(project_dir: &str, cache: &str) -> Result<(), Box<dyn std::error::Error>> {
-    make(project_dir, cache)
+pub fn build(src_dir: &Path, cache: &str) -> Result<(), Box<dyn std::error::Error>> {
+    let project_dir = src_dir.to_string_lossy();
+
+    make(&project_dir, cache)?;
+    install(src_dir, "/usr")?; // TODO: prefix
+    Ok(())
+}
+
+pub fn sudo(dir: &str, args: &[&str]) -> Result<bool, Box<dyn std::error::Error>> {
+    let dir_path = Path::new(dir);
+    let status = Command::new("sudo")
+        .current_dir(dir_path)
+        .args(args)
+        .stdout(Stdio::inherit())
+        .stderr(Stdio::inherit())
+        .status()?;
+    Ok(status.success())
 }
 
 fn make(project_dir: &str, cache: &str) -> Result<(), Box<dyn std::error::Error>> {
@@ -36,15 +49,28 @@ fn make(project_dir: &str, cache: &str) -> Result<(), Box<dyn std::error::Error>
     Ok(())
 }
 
-fn install(name: &str, src: &str, dest: &str) {
+fn install(src: &Path, dest: &str) -> Result<(), Box<dyn std::error::Error>> {
     println!("Installing package to: {}", dest);
+    let src_str = src.to_string_lossy();
 
-    let build_dir = Path::new(src).join("pkg").join(name);
+    let build_dir = Path::new(src).join("pkg");
     let build_str = build_dir.to_string_lossy();
+    let build_name = src
+        .file_name()
+        .unwrap()
+        .to_string_lossy()
+        .replace("\"", "")
+        .to_string();
 
-    let args = vec!["-ivr", &build_str, &dest];
+    println!("{}", build_name);
 
-    run(src, "cp", &args);
+    let joined_str = format!("{build_str}/{build_name}");
+
+    let args = vec!["cp", "-ivr", &joined_str, &dest];
+
+    sudo(&src_str, &args)?;
+
+    Ok(())
 }
 
 fn run(dir: &str, cmd: &str, args: &[&str]) -> Result<bool, Box<dyn std::error::Error>> {

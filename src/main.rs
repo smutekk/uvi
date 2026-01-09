@@ -6,12 +6,14 @@ use std::fs::File;
 use std::io::copy;
 use std::path::Path;
 use std::path::PathBuf;
+use std::process::Command;
+use std::process::Stdio;
 use tar::Archive;
 use xz2::read::XzDecoder;
 // use zstd::stream;
 use bzip2::read::BzDecoder;
 
-mod compilers;
+pub mod compilers;
 
 #[derive(Parser, Debug)]
 #[command(
@@ -107,6 +109,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Prefix is: {}", target_destination.display());
 
     Ok(())
+}
+
+pub fn sudo(dir: &Path, args: &[&str]) -> Result<bool, Box<dyn std::error::Error>> {
+    let status = Command::new("sudo")
+        .current_dir(dir)
+        .args(args)
+        .stdout(Stdio::inherit())
+        .stderr(Stdio::inherit())
+        .status()?;
+    Ok(status.success())
 }
 
 fn download(
@@ -230,7 +242,7 @@ fn install(
     } else if destination.join("PKGBUILD").exists() {
         println!("Found PKGBUILD, building with makepkg..");
 
-        compilers::pkgbuild::build(destination.to_str().unwrap(), cache.to_str().unwrap())?;
+        compilers::pkgbuild::build(destination, cache.to_str().unwrap())?;
     } else {
         println!("No supported build files found, exiting..");
     }
