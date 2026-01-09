@@ -4,6 +4,7 @@
 * Make
 * Ninja
 * Meson
+* Makepkg (currently)
 
 ### Supported Types
 * .xz

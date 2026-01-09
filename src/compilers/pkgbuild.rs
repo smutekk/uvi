@@ -8,7 +8,7 @@ pub fn build(src_dir: &Path, cache: &str) -> Result<(), Box<dyn std::error::Erro
     let project_dir = src_dir.to_string_lossy();
 
     make(&project_dir, cache)?;
-    install(src_dir, "/usr")?; // TODO: prefix
+    install(src_dir, "/")?; // TODO: prefix
     Ok(())
 }
 
@@ -54,7 +54,7 @@ fn install(src: &Path, dest: &str) -> Result<(), Box<dyn std::error::Error>> {
     let src_str = src.to_string_lossy();
 
     let build_dir = Path::new(src).join("pkg");
-    let build_str = build_dir.to_string_lossy();
+    // let build_str = build_dir.to_string_lossy();
     let build_name = src
         .file_name()
         .unwrap()
@@ -63,12 +63,23 @@ fn install(src: &Path, dest: &str) -> Result<(), Box<dyn std::error::Error>> {
         .to_string();
 
     println!("{}", build_name);
+    let install_dir = Path::new(&build_dir).join(build_name);
+    println!("{:?}", install_dir);
+    let install_str = format!("{}", install_dir.to_string_lossy());
+    // let joined_str = format!("{build_str}/{build_name}/*");
+    println!("{}", install_str);
+    for component in fs::read_dir(install_str).unwrap() {
+        let component_str = format!("{:?}", component.unwrap().file_name());
+        let component_path = install_dir.join(&component_str);
+        let component_path_str = component_path
+            .to_string_lossy()
+            .replace("\"", "")
+            .to_string();
+        println!("{}", component_path_str);
+        let args = vec!["cp", "-ivr", &component_path_str, &dest];
 
-    let joined_str = format!("{build_str}/{build_name}");
-
-    let args = vec!["cp", "-ivr", &joined_str, &dest];
-
-    sudo(&src_str, &args)?;
+        sudo(&src_str, &args)?;
+    }
 
     Ok(())
 }
