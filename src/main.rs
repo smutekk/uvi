@@ -22,23 +22,34 @@ pub mod compilers;
     override_usage = "uvi <NAME> [OPTIONS]"
 )]
 struct Args {
+    /// Name of package
     name: String,
 
+    /// Format like: "--arg1 --arg2 --arg3"
+    #[arg(long)]
+    args: String,
+
+    /// Usable on Uvite
     #[arg(long)]
     user: bool,
 
+    /// Prefix for installing files
     #[arg(long, default_value = "/usr")]
     prefix: String,
 
+    /// Like --noconfirm from pacman
     #[arg(long)]
     fast: bool, // essentially --noconfirm
 
+    /// Specify after the name if you set the name to a link
     #[arg(long)]
     link: bool,
 
+    /// If you want to use systemd or not
     #[arg(long)]
     systemd: bool,
 
+    /// Repo to search
     #[arg(long, default_value = "https://aur.archlinux.org/")]
     repo: String,
 }
@@ -212,6 +223,9 @@ fn install(
     let dest_str = destination.to_str();
     let inst_str = install_dir.to_string_lossy();
 
+    let args = Args::parse();
+    let build_args = args.args;
+
     println!("unpacked file located at: {}", dest_str.unwrap());
 
     let build_dir = destination.join("build");
@@ -227,7 +241,7 @@ fn install(
         compilers::meson::build(
             destination.to_str().unwrap(),
             &build_dir.to_string_lossy(),
-            &format!("--prefix=/{inst_str}"), // not instal_dir/prefix yet
+            &format!("--prefix=/{inst_str} {build_args}"), // not instal_dir/prefix yet
         );
     } else if destination.join("Makefile").exists() && !destination.join("meson.build").exists() {
         println!("Found a Makefile, building with make..");
@@ -235,14 +249,14 @@ fn install(
         compilers::make::build(
             destination.to_str().unwrap(),
             &build_dir.to_string_lossy(),
-            &format!("--prefix=/{inst_str}"),
+            &format!("--prefix=/{inst_str} {build_args}"),
         );
 
         println!("done?")
     } else if destination.join("PKGBUILD").exists() {
         println!("Found PKGBUILD, building with makepkg..");
 
-        compilers::pkgbuild::build(destination, cache.to_str().unwrap())?;
+        compilers::pkgbuild::build(destination, cache.to_str().unwrap(), &build_args)?;
     } else {
         println!("No supported build files found, exiting..");
     }

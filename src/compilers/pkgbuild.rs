@@ -4,10 +4,14 @@ use std::fs;
 use std::path::Path;
 use std::process::{Command, Stdio};
 
-pub fn build(src_dir: &Path, cache: &str) -> Result<(), Box<dyn std::error::Error>> {
+pub fn build(
+    src_dir: &Path,
+    cache: &str,
+    build_args: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
     let project_dir = src_dir.to_string_lossy();
 
-    make(&project_dir, cache)?;
+    make(&project_dir, cache, &build_args)?;
     install(src_dir, "/")?; // TODO: prefix
     Ok(())
 }
@@ -23,8 +27,15 @@ pub fn sudo(dir: &str, args: &[&str]) -> Result<bool, Box<dyn std::error::Error>
     Ok(status.success())
 }
 
-fn make(project_dir: &str, cache: &str) -> Result<(), Box<dyn std::error::Error>> {
-    let args = vec!["--noconfirm", "--needed"];
+fn make(
+    project_dir: &str,
+    cache: &str,
+    build_args: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let mut args = vec!["--noconfirm", "--needed"];
+
+    args.extend(build_args.split_whitespace());
+
     if run(project_dir, "makepkg", &args)? {
         return Ok(());
     }
