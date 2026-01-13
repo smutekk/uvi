@@ -27,7 +27,7 @@ struct Args {
 
     /// Format like: "--arg1 --arg2 --arg3"
     #[arg(long)]
-    args: String,
+    args: Option<String>,
 
     /// Usable on Uvite
     #[arg(long)]
@@ -40,6 +40,10 @@ struct Args {
     /// Like --noconfirm from pacman
     #[arg(long)]
     fast: bool, // essentially --noconfirm
+
+    /// Allows for building of requested package, enabled by default.
+    #[arg(long)]
+    build: bool,
 
     /// Specify after the name if you set the name to a link
     #[arg(long)]
@@ -224,7 +228,13 @@ fn install(
     let inst_str = install_dir.to_string_lossy();
 
     let args = Args::parse();
-    let build_args = args.args;
+    let build_args = format!("{:?}", args.args);
+
+    let mut buildable = false;
+
+    if args.build {
+        buildable = true
+    }
 
     println!("unpacked file located at: {}", dest_str.unwrap());
 
@@ -238,19 +248,27 @@ fn install(
 
         println!("Build directory is: {}", build_dir.to_string_lossy());
 
-        compilers::meson::build(
-            destination.to_str().unwrap(),
-            &build_dir.to_string_lossy(),
-            &format!("--prefix=/{inst_str} {build_args}"), // not instal_dir/prefix yet
-        );
+        if buildable {
+            compilers::meson::build(
+                destination.to_str().unwrap(),
+                &build_dir.to_string_lossy(),
+                &format!("--prefix=/{inst_str} {build_args}"), // not instal_dir/prefix yet
+            );
+        } else {
+            println!("Buildable flag disabled..");
+        }
     } else if destination.join("Makefile").exists() && !destination.join("meson.build").exists() {
         println!("Found a Makefile, building with make..");
 
-        compilers::make::build(
-            destination.to_str().unwrap(),
-            &build_dir.to_string_lossy(),
-            &format!("--prefix=/{inst_str} {build_args}"),
-        );
+        if buildable {
+            compilers::make::build(
+                destination.to_str().unwrap(),
+                &build_dir.to_string_lossy(),
+                &format!("--prefix=/{inst_str} {build_args}"),
+            );
+        } else {
+            println!("Buildable flag disabled..")
+        }
 
         println!("done?")
     } else if destination.join("PKGBUILD").exists() {
