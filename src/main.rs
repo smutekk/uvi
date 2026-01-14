@@ -1,5 +1,6 @@
 use clap::Parser;
 use git2::Repository;
+use reqwest::StatusCode;
 use reqwest::blocking;
 use std::env;
 use std::fs::File;
@@ -12,6 +13,8 @@ use tar::Archive;
 use xz2::read::XzDecoder;
 // use zstd::stream;
 use bzip2::read::BzDecoder;
+
+// git_repo requires repo and url to be passed in, change it to just url and seperate using split()
 
 pub mod compilers;
 
@@ -83,7 +86,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let repo = args.repo.as_str();
 
     if query.ends_with(".git") {
-        git_repo(query, Path::new(&file_path), target_destination, &cache)?;
+        git_repo(
+            query,
+            Path::new(&file_path),
+            target_destination,
+            &cache,
+            &repo,
+        )?;
     } else {
         println!("Downloading: {query}");
     }
@@ -109,6 +118,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 Path::new(&file_path),
                 target_destination,
                 &cache,
+                &repo,
             )?;
         }
     }
@@ -152,27 +162,33 @@ fn git_repo(
     destination: &Path,
     prefix: &Path,
     cache: &Path,
+    repo: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
     println!("Testing if repo exists..");
-    let url_status = blocking::get(url);
-    // tries to get aur.archlinux.org/name instead of /package/name
+    let git_pkg_name = url.rsplit_once("/").unwrap().1;
+    let pkg_name = git_pkg_name.rsplit_once(".").unwrap().0;
+    let formatted_url = format!("{repo}packages/{pkg_name}");
+    let url_status = blocking::get(formatted_url)?;
 
-    println!("Website returned with: {:?}", url_status);
+    println!("{}", pkg_name);
 
-    println!("Cloning {} into {:?}..", url, destination);
+    if !url_status.error_for_status().is_ok() {
+        println!("Package not found in repo: {}", repo)
+    } else {
+        println!("Cloning {} into {:?}..", url, destination);
 
-    match Repository::clone(url, destination) {
-        Ok(repo) => {
-            let mut dir_work = repo.workdir();
-            let repo_path = dir_work.get_or_insert_with(|| Path::new("/tmp"));
+        match Repository::clone(url, destination) {
+            Ok(repo) => {
+                let mut dir_work = repo.workdir();
+                let repo_path = dir_work.get_or_insert_with(|| Path::new("/tmp"));
 
-            println!("Sucessfully cloned: {:?}", repo_path);
+                println!("Sucessfully cloned: {:?}", repo_path);
 
-            install(&repo_path, prefix, cache)?;
-        }
-        Err(e) => panic!("Failed to clone: {}", e),
-    };
-
+                install(&repo_path, prefix, cache)?;
+            }
+            Err(e) => panic!("Failed to clone: {}", e),
+        };
+    }
     Ok(())
 }
 
