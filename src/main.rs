@@ -25,7 +25,7 @@ struct Args {
     /// Name of package
     name: String,
 
-    /// Format like: "--arg1 --arg2 --arg3"
+    /// Format inside of quotemarks: "--arg1 --arg2 --arg3"
     #[arg(long)]
     args: Option<String>,
 
@@ -88,7 +88,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("Downloading: {query}");
     }
     if args.user {
-        target_destination = Path::new(&home_path); //get username
+        target_destination = Path::new(&home_path);
     }
     if args.link {
         println!("Using url: {}", query);
@@ -111,13 +111,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 &cache,
             )?;
         }
-
-        // download(
-        //     &format!("repo{query}"),
-        //     &file_path,
-        //     &cache,
-        //     target_destination,
-        // )?;
     }
 
     println!("Home dir is: {:?}", home_path);
@@ -160,6 +153,12 @@ fn git_repo(
     prefix: &Path,
     cache: &Path,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    println!("Testing if repo exists..");
+    let url_status = blocking::get(url);
+    // tries to get aur.archlinux.org/name instead of /package/name
+
+    println!("Website returned with: {:?}", url_status);
+
     println!("Cloning {} into {:?}..", url, destination);
 
     match Repository::clone(url, destination) {
