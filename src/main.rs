@@ -222,7 +222,7 @@ fn unpack(
         .file_stem()
         .and_then(|s| Path::new(s).file_stem())
         .and_then(|s| s.to_str())
-        .unwrap_or("default");
+        .unwrap_or_default();
 
     install(
         &destination.join(unpacked_file.to_string()),
