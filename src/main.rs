@@ -1,6 +1,5 @@
 use clap::Parser;
 use git2::Repository;
-use reqwest::StatusCode;
 use reqwest::blocking;
 use std::env;
 use std::fs::File;
@@ -149,6 +148,8 @@ fn download(
     let mut dest = File::create(destination)?;
     let content = response.bytes()?;
 
+    println!("{:?}", destination);
+
     copy(&mut content.as_ref(), &mut dest)?;
     drop(dest);
 
@@ -164,17 +165,34 @@ fn git_repo(
     cache: &Path,
     repo: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    println!("Testing if repo exists..");
-    let git_pkg_name = url.rsplit_once("/").unwrap().1;
+    println!("Testing if repo exists..\n");
+
+    println!("Set repo: {}", &repo);
+    println!("Set url: {}\n", &url);
+    let git_pkg_name = &url.rsplit_once("/").unwrap().1;
     let pkg_name = git_pkg_name.rsplit_once(".").unwrap().0;
+    println!("Package name: {pkg_name}\n");
     let formatted_url = format!("{repo}packages/{pkg_name}");
     let url_status = blocking::get(formatted_url)?;
 
-    println!("{}", pkg_name);
-
     if !url_status.error_for_status().is_ok() {
-        println!("Package not found in repo: {}", repo)
+        println!(
+            "\x1b[31mPackage not found in repo:\x1b[0m {} \nTrying backup repo.. (https://archlinux.org/)",
+            repo
+        );
+        let formatted_url =
+            format!("https://gitlab.archlinux.org/archlinux/packaging/packages/{pkg_name}.git");
+
+        git_repo(
+            &formatted_url,
+            destination,
+            cache,
+            prefix,
+            "https://gitlab.archlinux.org/archlinux/packaging/",
+        )?;
     } else {
+        println!("\x1b[32mUrl returned OK!\x1b[0m\n");
+
         println!("Cloning {} into {:?}..", url, destination);
 
         match Repository::clone(url, destination) {
