@@ -4,7 +4,7 @@ pub fn build(project_dir: &str, build_dir: &str, arguments: &str) {
     install(project_dir, build_dir, arguments);
 }
 
-fn install(project_dir: &str, build_dir: &str, user_args: &str) {
+fn install(project_dir: &str, _build_dir: &str, _user_args: &str) {
     let args = vec!["--prefix=/usr"];
 
     run_command(project_dir, "./configure", &args);

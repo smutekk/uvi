@@ -11,6 +11,8 @@ pub fn build(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let project_dir = src_dir.to_string_lossy();
 
+    println!("Passed cache: {}", &cache);
+
     make(&project_dir, cache, &build_args)?;
     install(src_dir, "/")?; // TODO: prefix
     Ok(())
@@ -40,9 +42,7 @@ fn make(
 
     for dep in deps {
         let url = format!("https://aur.archlinux.org/{dep}.git");
-        if !aur_has_refs(&url) {
-            continue;
-        }
+
         println!("{:?}", dep);
 
         let path = Path::new(cache).join(&dep);
@@ -101,16 +101,6 @@ fn run(dir: &str, cmd: &str, args: &[&str]) -> Result<bool, Box<dyn std::error::
         .stderr(Stdio::inherit())
         .status()?;
     Ok(status.success())
-}
-
-fn aur_has_refs(url: &str) -> bool {
-    Command::new("git")
-        .args(["ls-remote", url])
-        .stdout(Stdio::piped())
-        .stderr(Stdio::null())
-        .output()
-        .map(|o| !o.stdout.is_empty())
-        .unwrap_or(false)
 }
 
 fn get_deps(project_dir: &str) -> Vec<String> {

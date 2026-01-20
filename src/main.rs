@@ -109,6 +109,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         )?;
     } else {
         println!("Package to download is: {}", query);
+        println!("Cache path: {:?}", cache);
 
         if repo == "https://aur.archlinux.org/" {
             git_repo(
@@ -154,11 +155,12 @@ fn download(
     let content = response.bytes()?;
 
     println!("{:?}", destination);
+    println!("down func cache: {:?}", &cache);
 
     copy(&mut content.as_ref(), &mut dest)?;
     drop(dest);
 
-    unpack(Path::new(destination), &cache, prefix)?;
+    unpack(Path::new(destination), &cache, prefix, &cache)?;
 
     Ok(())
 }
@@ -176,16 +178,14 @@ fn git_repo(
     println!("Set url: {}\n", &url);
     let git_pkg_name = &url.rsplit_once("/").unwrap().1;
     let pkg_name = git_pkg_name.rsplit_once(".").unwrap().0;
-    println!("Package name: {pkg_name}\n");
+    println!("\x1b[1mPackage name: {pkg_name}\n\x1b[0m");
     let formatted_url = format!("{repo}packages/{pkg_name}"); // not finding anything in aur
     let url_status = blocking::get(&formatted_url)?; // same thing as 
-
-    println!("{}", &formatted_url);
 
     if !url_status.error_for_status().is_ok() {
         // Make it so that it doesn't loop when retrying
         println!(
-            "\x1b[31mPackage not found in repo:\x1b[0m {} \n\x1b[33mTrying backup repo..\x1b[0m (https://archlinux.org/)",
+            "\x1b[31;1mPackage not found in repo:\x1b[0m {} \n\x1b[33;1mTrying backup repo..\x1b[0m (https://archlinux.org/)",
             repo
         );
         let formatted_url =
@@ -194,21 +194,25 @@ fn git_repo(
         git_repo(
             &formatted_url,
             destination,
-            cache,
             prefix,
-            "https://gitlab.archlinux.org/archlinux/packaging/packages/",
+            &cache,
+            "https://gitlab.archlinux.org/archlinux/packaging/",
         )?;
     } else {
-        println!("\x1b[32mUrl returned OK!\x1b[0m\n");
+        println!("\x1b[32;1mUrl returned OK!\x1b[0m\n");
 
-        println!("Cloning {} into {:?}..", url, destination);
+        println!(
+            "\x1b[33;1mCloning {} into {}..\x1b[0m\n",
+            url,
+            destination.to_string_lossy()
+        );
 
         match Repository::clone(url, destination) {
             Ok(repo) => {
                 let mut dir_work = repo.workdir();
                 let repo_path = dir_work.get_or_insert_with(|| Path::new("/tmp"));
 
-                println!("Sucessfully cloned: {:?}", repo_path);
+                println!("\x1b[32;1mSucessfully cloned: {:?}\x1b[0m\n", repo_path);
 
                 install(&repo_path, prefix, cache)?;
             }
@@ -222,6 +226,7 @@ fn unpack(
     file_to_unpack: &Path,
     destination: &Path,
     prefix: &Path,
+    cache: &Path,
 ) -> Result<PathBuf, Box<dyn std::error::Error>> {
     let file = File::open(file_to_unpack)?;
 
@@ -250,11 +255,7 @@ fn unpack(
         .and_then(|s| s.to_str())
         .unwrap_or_default();
 
-    install(
-        &destination.join(unpacked_file.to_string()),
-        prefix,
-        Path::new(""),
-    )?;
+    install(&destination.join(unpacked_file.to_string()), prefix, &cache)?;
     // return Ok(destination.to_path_buf());
 
     Err("File ext. not supported.".into())
@@ -265,7 +266,7 @@ fn install(
     install_dir: &Path,
     cache: &Path,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let dest_str = destination.to_str();
+    let _dest_str = destination.to_str();
     let inst_str = install_dir.to_string_lossy();
 
     let args = Args::parse();
@@ -276,8 +277,6 @@ fn install(
     if args.build {
         buildable = true
     }
-
-    println!("unpacked file located at: {}", dest_str.unwrap());
 
     let build_dir = destination.join("build");
 
@@ -299,7 +298,7 @@ fn install(
             println!("Buildable flag disabled..");
         }
     } else if destination.join("Makefile").exists() && !destination.join("meson.build").exists() {
-        println!("Found a Makefile, building with make..");
+        println!("\x1b[31mFound a Makefile, building with make..\x1b[0m\n");
 
         if buildable {
             compilers::make::build(
