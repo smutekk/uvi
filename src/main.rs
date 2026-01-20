@@ -27,9 +27,13 @@ struct Args {
     /// Name of package
     name: String,
 
-    /// Format inside of quotemarks: "--arg1 --arg2 --arg3"
+    /// Uninstall package
     #[arg(long)]
-    args: Option<String>,
+    uninstall: bool,
+
+    /// Build args. Format inside of quotemarks: bargs "--arg1 --arg2 --arg3"
+    #[arg(long)]
+    bargs: Option<String>,
 
     /// Usable on Uvite
     #[arg(long)]
@@ -92,14 +96,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             &cache,
             &repo,
         )?;
-    } else {
-        println!("Downloading: {query}");
     }
     if args.user {
         target_destination = Path::new(&home_path);
     }
     if args.link {
-        println!("Using url: {}", query);
         download(
             query,
             Path::new(&file_path),
@@ -108,8 +109,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         )?;
     } else {
         println!("Package to download is: {}", query);
-
-        println!("{}", format!("Using url: {repo}{query}"));
 
         if repo == "https://aur.archlinux.org/" {
             git_repo(
@@ -120,6 +119,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 &repo,
             )?;
         }
+    }
+
+    // Uninstall handling
+    if args.uninstall {
+        println!("Uninstalling: {query}");
+        // use pkg-config to find installed package and then uninstall
     }
 
     println!("Home dir is: {:?}", home_path);
@@ -165,19 +170,22 @@ fn git_repo(
     cache: &Path,
     repo: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    println!("Testing if repo exists..\n");
+    println!("\x1b[33mTesting if repo exists..\x1b[0m\n");
 
     println!("Set repo: {}", &repo);
     println!("Set url: {}\n", &url);
     let git_pkg_name = &url.rsplit_once("/").unwrap().1;
     let pkg_name = git_pkg_name.rsplit_once(".").unwrap().0;
     println!("Package name: {pkg_name}\n");
-    let formatted_url = format!("{repo}packages/{pkg_name}");
-    let url_status = blocking::get(formatted_url)?;
+    let formatted_url = format!("{repo}packages/{pkg_name}"); // not finding anything in aur
+    let url_status = blocking::get(&formatted_url)?; // same thing as 
+
+    println!("{}", &formatted_url);
 
     if !url_status.error_for_status().is_ok() {
+        // Make it so that it doesn't loop when retrying
         println!(
-            "\x1b[31mPackage not found in repo:\x1b[0m {} \nTrying backup repo.. (https://archlinux.org/)",
+            "\x1b[31mPackage not found in repo:\x1b[0m {} \n\x1b[33mTrying backup repo..\x1b[0m (https://archlinux.org/)",
             repo
         );
         let formatted_url =
@@ -188,7 +196,7 @@ fn git_repo(
             destination,
             cache,
             prefix,
-            "https://gitlab.archlinux.org/archlinux/packaging/",
+            "https://gitlab.archlinux.org/archlinux/packaging/packages/",
         )?;
     } else {
         println!("\x1b[32mUrl returned OK!\x1b[0m\n");
@@ -261,7 +269,7 @@ fn install(
     let inst_str = install_dir.to_string_lossy();
 
     let args = Args::parse();
-    let build_args = format!("{:?}", args.args);
+    let build_args = format!("{:?}", args.bargs);
 
     let mut buildable = false;
 

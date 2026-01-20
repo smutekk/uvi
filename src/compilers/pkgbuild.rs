@@ -36,10 +36,6 @@ fn make(
 
     args.extend(build_args.split_whitespace());
 
-    if run(project_dir, "makepkg", &args)? {
-        return Ok(());
-    }
-
     let deps = get_deps(project_dir);
 
     for dep in deps {
@@ -47,6 +43,7 @@ fn make(
         if !aur_has_refs(&url) {
             continue;
         }
+        println!("{:?}", dep);
 
         let path = Path::new(cache).join(&dep);
         if !path.exists() {
@@ -57,6 +54,7 @@ fn make(
     }
 
     run(project_dir, "makepkg", &args)?;
+    println!("Ran makepkg!");
     Ok(())
 }
 
@@ -77,8 +75,7 @@ fn install(src: &Path, dest: &str) -> Result<(), Box<dyn std::error::Error>> {
     let install_dir = Path::new(&build_dir).join(build_name);
     let install_str = format!("{}", install_dir.to_string_lossy());
 
-    println!("{:?}", install_dir);
-    println!("{}", install_str);
+    println!("Install Dir: {}", install_str);
 
     for component in fs::read_dir(install_str).unwrap() {
         let component_str = format!("{:?}", component.unwrap().file_name());
@@ -88,7 +85,7 @@ fn install(src: &Path, dest: &str) -> Result<(), Box<dyn std::error::Error>> {
             .replace("\"", "")
             .to_string();
         println!("{}", component_path_str);
-        let args = vec!["cp", "-ivr", &component_path_str, &dest];
+        let args = vec!["cp", "-fvr", &component_path_str, &dest];
 
         sudo(&src_str, &args)?;
     }
