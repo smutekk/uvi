@@ -1,3 +1,5 @@
+// Edited version of the meson cargo package.
+
 use regex::Regex;
 use std::fs;
 use std::path::{Path, PathBuf};
