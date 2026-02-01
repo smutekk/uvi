@@ -135,9 +135,21 @@ dependencies = [
  "serde_json",
  "tar",
  "tempfile",
- "toml",
+ "toml 0.9.10+spec-1.1.0",
  "xz2",
  "zopfli",
+]
+
+[[package]]
+name = "cargo-makepkg"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "df728e2b321eb48784caeced7bcf3f406cac080781b45ffe361d63d18c15d333"
+dependencies = [
+ "serde",
+ "serde_derive",
+ "serde_json",
+ "toml 0.4.10",
 ]
 
 [[package]]
@@ -147,7 +159,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "374b7c592d9c00c1f4972ea58390ac6b18cbb6ab79011f3bdc90a0b82ca06b77"
 dependencies = [
  "serde",
- "toml",
+ "toml 0.9.10+spec-1.1.0",
 ]
 
 [[package]]
@@ -1407,6 +1419,15 @@ dependencies = [
 
 [[package]]
 name = "toml"
+version = "0.4.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "758664fc71a3a69038656bee8b6be6477d2a6c315a6b81f7081f591bffa4111f"
+dependencies = [
+ "serde",
+]
+
+[[package]]
+name = "toml"
 version = "0.9.10+spec-1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0825052159284a1a8b4d6c0c86cbc801f2da5afd2b225fa548c72f2e74002f48"
@@ -1511,6 +1532,7 @@ version = "0.0.1"
 dependencies = [
  "bzip2",
  "cargo-deb",
+ "cargo-makepkg",
  "clap",
  "flate2",
  "git2",
