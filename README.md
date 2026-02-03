@@ -16,3 +16,4 @@
 * support for .rpm
 * support for .deb
 * search functionality
+* rewrite pacman to use a different config file
