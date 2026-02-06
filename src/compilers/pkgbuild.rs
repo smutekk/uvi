@@ -1,8 +1,9 @@
-use git2::Repository;
 use regex::Regex;
 use std::fs;
 use std::path::Path;
 use std::process::{Command, Stdio};
+
+// yo how did i write so terribly
 
 pub fn build(
     src_dir: &Path,
@@ -40,18 +41,18 @@ fn make(
 
     let deps = get_deps(project_dir);
 
-    for dep in deps {
-        let url = format!("https://aur.archlinux.org/{dep}.git");
+    // for dep in deps {
+    //     let url = format!("https://aur.archlinux.org/{dep}.git");
 
-        println!("{:?}", dep);
+    //     println!("{:?}", dep);
 
-        let path = Path::new(cache).join(&dep);
-        if !path.exists() {
-            Repository::clone(&url, &path)?;
-        }
+    //     let path = Path::new(cache).join(&dep);
+    //     if !path.exists() {
+    //         Repository::clone(&url, &path)?;
+    //     }
 
-        run(path.to_str().unwrap(), "makepkg", &args)?;
-    }
+    //     run(path.to_str().unwrap(), "makepkg", &args)?;
+    // }
 
     run(project_dir, "makepkg", &args)?;
     println!("Ran makepkg!");
@@ -101,6 +102,16 @@ fn run(dir: &str, cmd: &str, args: &[&str]) -> Result<bool, Box<dyn std::error::
         .stderr(Stdio::inherit())
         .status()?;
     Ok(status.success())
+}
+
+fn get_url(pkgbuild_location: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    let content = fs::read_to_string(&pkgbuild_location);
+
+    let re = Regex::new(r#""#).unwrap();
+
+    // TODO vec[] with pkgvver, pkgname, commit, idk other stuff that the source url uses
+
+    Ok(())
 }
 
 fn get_deps(project_dir: &str) -> Vec<String> {
