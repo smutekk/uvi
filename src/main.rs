@@ -110,8 +110,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             target_destination,
         )?;
     } else {
-        println!("Package to download is: {}", query);
-        println!("Cache path: {:?}", cache);
+        println!("=> Package to download is: {}", query);
+        println!("=> Cache path: {:?}", cache);
 
         if repo == "https://aur.archlinux.org/" {
             git_repo(
@@ -126,12 +126,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Uninstall handling
     if args.uninstall {
-        println!("Uninstalling: {query}");
+        println!("=> Uninstalling: {query}");
         // use pkg-config to find installed package and then uninstall
     }
 
-    println!("Home dir is: {:?}", home_path);
-    println!("Prefix is: {}", target_destination.display());
+    println!("=> Home dir is: {:?}", home_path);
+    println!("=> Prefix is: {}", target_destination.display());
 
     Ok(())
 }
@@ -156,9 +156,6 @@ fn download(
     let mut dest = File::create(destination)?;
     let content = response.bytes()?;
 
-    println!("{:?}", destination);
-    println!("down func cache: {:?}", &cache);
-
     copy(&mut content.as_ref(), &mut dest)?;
     drop(dest);
 
@@ -174,13 +171,16 @@ fn git_repo(
     cache: &Path,
     repo: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    println!("\x1b[33mTesting if repo exists..\x1b[0m\n");
+    println!("=> \x1b[33mTesting if repo exists..\x1b[0m");
 
-    println!("Set repo: {}", &repo);
-    println!("Set url: {}\n", &url);
+    println!("=> Set repo: {}", &repo);
+    println!("=> Set url: {}", &url);
+
     let git_pkg_name = &url.rsplit_once("/").unwrap().1;
     let pkg_name = git_pkg_name.rsplit_once(".").unwrap().0;
-    println!("\x1b[1mPackage name: {pkg_name}\n\x1b[0m");
+
+    println!("=> \x1b[1mPackage name: {pkg_name}\x1b[0m");
+
     let formatted_url = format!("{repo}packages/{pkg_name}"); // not finding anything in aur
     let url_status = blocking::get(&formatted_url)?; // same thing as 
 
