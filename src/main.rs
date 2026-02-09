@@ -1,3 +1,5 @@
+// yo fuck this code
+
 use clap::Parser;
 use git2::Repository;
 use reqwest::blocking;
@@ -31,7 +33,7 @@ struct Args {
     #[arg(long)]
     uninstall: bool,
 
-    /// Build args. Format inside of quotemarks: bargs "--arg1 --arg2 --arg3"
+    /// Build args. Format inside of quotemarks: bargs "arg1 arg2 arg3"
     #[arg(long)]
     bargs: Option<String>,
 
@@ -185,7 +187,7 @@ fn git_repo(
     if !url_status.error_for_status().is_ok() {
         // Make it so that it doesn't loop when retrying
         println!(
-            "\x1b[31;1mPackage not found in repo:\x1b[0m {} \n\x1b[33;1mTrying backup repo..\x1b[0m (https://archlinux.org/)",
+            "=> \x1b[31;1mPackage not found in repo:\x1b[0m {} \n\x1b[33;1mTrying backup repo..\x1b[0m (https://archlinux.org/)",
             repo
         );
         let formatted_url =
@@ -199,10 +201,10 @@ fn git_repo(
             "https://gitlab.archlinux.org/archlinux/packaging/",
         )?;
     } else {
-        println!("\x1b[32;1mUrl returned OK!\x1b[0m\n");
+        println!("=> \x1b[32;1mUrl returned OK!\x1b[0m");
 
         println!(
-            "\x1b[33;1mCloning {} into {}..\x1b[0m\n",
+            "=> \x1b[33;1mCloning {} into {}..\x1b[0m",
             url,
             destination.to_string_lossy()
         );
@@ -212,11 +214,11 @@ fn git_repo(
                 let mut dir_work = repo.workdir();
                 let repo_path = dir_work.get_or_insert_with(|| Path::new("/tmp"));
 
-                println!("\x1b[32;1mSucessfully cloned: {:?}\x1b[0m\n", repo_path);
+                println!("=> \x1b[32;1mSucessfully cloned: {:?}\x1b[0m", repo_path);
 
                 install(&repo_path, prefix, cache)?;
             }
-            Err(e) => panic!("Failed to clone: {}", e),
+            Err(e) => panic!("=> Failed to clone: {}", e),
         };
     }
     Ok(())
@@ -231,18 +233,18 @@ fn unpack(
     let file = File::open(file_to_unpack)?;
 
     if file_to_unpack.extension().map_or(false, |ext| ext == "xz") {
-        println!("XZ file detected! starting unpack process..");
+        println!("=> XZ file detected! starting unpack process..");
 
         let decompressor = XzDecoder::new(file);
         let mut archive = Archive::new(decompressor);
 
         archive.unpack(destination)?;
     } else if file_to_unpack.extension().map_or(false, |ext| ext == "zst") {
-        println!("ZST file detected! starting unpack process..");
+        println!("=> ZST file detected! starting unpack process..");
 
         // stream::copy_decode(file, destination)?; //not working
     } else if file_to_unpack.extension().map_or(false, |ext| ext == "bz") {
-        println!("BZ file detected! starting unpack proces..");
+        println!("=> BZ file detected! starting unpack proces..");
 
         let _decompressor = BzDecoder::new(file);
 
@@ -258,7 +260,7 @@ fn unpack(
     install(&destination.join(unpacked_file.to_string()), prefix, &cache)?;
     // return Ok(destination.to_path_buf());
 
-    Err("File ext. not supported.".into())
+    Err("=> File ext. not supported.".into())
 }
 
 fn install(
@@ -282,11 +284,11 @@ fn install(
 
     if destination.join("meson.build").exists() {
         if destination.join("Makefile").exists() {
-            println!("Found a Makefile when meson.build exists.. \n Defaulting to meson..");
+            println!("=> Found a Makefile when meson.build exists.. \n Defaulting to meson..");
         }
-        println!("Building with meson..");
+        println!("=> Building with meson..");
 
-        println!("Build directory is: {}", build_dir.to_string_lossy());
+        println!("=> Build directory is: {}", build_dir.to_string_lossy());
 
         if buildable {
             compilers::meson::build(
@@ -298,7 +300,7 @@ fn install(
             println!("Buildable flag disabled..");
         }
     } else if destination.join("Makefile").exists() && !destination.join("meson.build").exists() {
-        println!("\x1b[31mFound a Makefile, building with make..\x1b[0m\n");
+        println!("=> \x1b[31mFound a Makefile, building with make..\x1b[0m");
 
         if buildable {
             compilers::make::build(
@@ -307,19 +309,19 @@ fn install(
                 &format!("--prefix=/{inst_str} {build_args}"),
             );
         } else {
-            println!("Buildable flag disabled..")
+            println!("=> Buildable flag disabled..")
         }
 
-        println!("done?")
+        println!("=> done?")
     } else if destination.join("PKGBUILD").exists() {
-        println!("Found PKGBUILD, building with makepkg..");
+        println!("=> Found PKGBUILD, building with makepkg..");
 
         compilers::pkgbuild::build(destination, cache.to_str().unwrap(), &build_args)?;
     } else {
-        println!("No supported build files found, exiting..");
+        println!("=> No supported build files found, exiting..");
     }
 
-    println!("Finished installing, installed to: {inst_str}");
+    println!("=> Finished installing, installed to: {inst_str}");
 
     Ok(())
 }
