@@ -1,7 +1,7 @@
 [package]
 edition = "2024"
 name = "uvi"
-version = "0.0.1"
+version = "0.1.0"
 authors = ["kkettums"]
 
 [dependencies]
@@ -14,4 +14,4 @@ git2 = "0.19"
 regex = "1.12.2"
 zstd = "0.13.3"
 bzip2 = "0.6.1"
-pacman = "0.1.3"
+

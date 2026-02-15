@@ -316,7 +316,7 @@ fn install(
     } else if destination.join("PKGBUILD").exists() {
         println!("=> Found PKGBUILD, building with makepkg..");
 
-        compilers::pkgbuild::build(destination, cache.to_str().unwrap(), &build_args)?;
+        compilers::pkgbuild::build(destination, cache.to_str().unwrap());
     } else {
         println!("=> No supported build files found, exiting..");
     }
