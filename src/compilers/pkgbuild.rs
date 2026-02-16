@@ -34,5 +34,5 @@ fn make(pkgbuild_path: &Path) {
     let pkgname = vars.get("pkgname").map(|s| s.as_str()).unwrap_or("null");
     let pkgver = vars.get("pkgver").map(|s| s.as_str()).unwrap_or("1.0.0");
 
-    println!("{pkgname}");
+    println!("{source}");
 }
