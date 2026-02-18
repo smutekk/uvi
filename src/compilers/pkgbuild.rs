@@ -2,15 +2,17 @@
 // allow for newline in source url
 
 use regex::Regex;
+use reqwest::blocking;
 use std::collections::HashMap;
-use std::fs;
+use std::fs::{self, File};
+use std::io::copy;
 use std::path::Path;
 
 pub fn build(src_dir: &Path, cache: &str) {
     let project_dir = src_dir.to_string_lossy();
     let pkgbuild_path = src_dir.join("PKGBUILD");
 
-    make(&pkgbuild_path);
+    make(&pkgbuild_path, &src_dir);
 }
 
 fn parse_url(content: &str) -> Option<String> {
@@ -38,14 +40,30 @@ fn parse(content: &str) -> HashMap<String, String> {
     variables
 }
 
-fn make(pkgbuild_path: &Path) {
+fn download(url: &str, destination: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    let response = blocking::get(url)?;
+    let mut dest = File::create(destination)?;
+    let content = response.bytes()?;
+
+    copy(&mut content.as_ref(), &mut dest)?;
+    drop(dest);
+
+    Ok(())
+}
+
+fn make(pkgbuild_path: &Path, src_dir: &Path) {
     let content = fs::read_to_string(pkgbuild_path).unwrap();
 
     let vars = parse(&content);
     let pkgname = vars.get("pkgname").map(|s| s.as_str()).unwrap_or("null");
     let pkgver = vars.get("pkgver").map(|s| s.as_str()).unwrap_or("1.0.0");
     let pkg_url = if let Some(url) = parse_url(&content) {
-        println!("{url}") //TODO
+        let formatted_url = url.replace("${pkgver}", pkgver);
+        let formatted_name = formatted_url.rsplit_once("/").unwrap().1;
+
+        let formatted_path = src_dir.join(formatted_name);
+
+        download(&formatted_url, &formatted_path);
     } else {
         eprintln!("=> \x1b[31;mERROR: source url not found?\x1b[0m");
     };
