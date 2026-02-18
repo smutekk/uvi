@@ -229,48 +229,25 @@ fn git_repo(
 }
 
 pub fn unpack(file_to_unpack: &Path, destination: &Path) {
-    let file = File::open(file_to_unpack);
+    // let file = File::open(file_to_unpack);
 
-    if file_to_unpack.ends_with("z") {
-        println!("=> \x1b[33;1mTar detected, unzipping with xzvf..");
+    if file_to_unpack
+        .extension()
+        .map_or(false, |ext| ext == "gz" || ext == "xz")
+    {
+        println!("=> \x1b[33;1mTar detected, unzipping with xzvf..\x1b[0;m");
 
         Command::new("tar")
             .current_dir(destination)
             .arg("-xzvf")
             .arg(file_to_unpack)
-            .stdout(Stdio::inherit())
-            .stderr(Stdio::inherit())
-            .status();
+            // .stdout(Stdio::inherit())
+            // .stderr(Stdio::inherit())
+            .status()
+            .expect("Failed to unzip");
+    } else if file_to_unpack.extension().map_or(false, |ext| ext == "zst") {
+        println!("ugh")
     }
-
-    // if file_to_unpack.extension().map_or(false, |ext| ext == "xz") {
-    //     println!("=>\x1b[33;1m File extension detected! starting unpack process..\x1b[0m");
-
-    //     let decompressor = XzDecoder::new(file);
-    //     let mut archive = Archive::new(decompressor);
-
-    //     archive.unpack(destination)?;
-    // } else if file_to_unpack.extension().map_or(false, |ext| ext == "zst") {
-    //     println!("=> ZST file detected! starting unpack process..");
-
-    //     // stream::copy_decode(file, destination)?; //not working
-    // } else if file_to_unpack.extension().map_or(false, |ext| ext == "bz") {
-    //     println!("=> BZ file detected! starting unpack proces..");
-
-    //     let _decompressor = BzDecoder::new(file);
-
-    //     //TODO
-    // }
-
-    // let unpacked_file = file_to_unpack
-    //     .file_stem()
-    //     .and_then(|s| Path::new(s).file_stem())
-    //     .and_then(|s| s.to_str())
-    //     .unwrap_or_default();
-
-    // install(&destination.join(unpacked_file.to_string()))?;
-
-    // Err("=> File ext. not supported.".into())
 }
 
 fn install(destination: &Path) -> Result<(), Box<dyn std::error::Error>> {
