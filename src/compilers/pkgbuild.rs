@@ -1,9 +1,7 @@
-use regex::{Captures, Regex};
-use std::ascii::AsciiExt;
+use regex::Regex;
 use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
-use std::process::{Command, Stdio};
 
 pub fn build(src_dir: &Path, cache: &str) {
     let project_dir = src_dir.to_string_lossy();
@@ -34,5 +32,5 @@ fn make(pkgbuild_path: &Path) {
     let pkgname = vars.get("pkgname").map(|s| s.as_str()).unwrap_or("null");
     let pkgver = vars.get("pkgver").map(|s| s.as_str()).unwrap_or("1.0.0");
 
-    println!("{source}");
+    println!("{pkgname}");
 }
