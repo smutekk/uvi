@@ -150,7 +150,6 @@ pub fn download(url: &str, destination: &Path) -> Result<(), Box<dyn std::error:
     drop(dest);
 
     println!("=> \x1b[32;1mDownloaded file successfully!\x1b[0m");
-    println!("{:?}", destination.parent().unwrap());
 
     unpack(destination, destination.parent().unwrap());
 
@@ -228,7 +227,7 @@ pub fn unpack(file_to_unpack: &Path, destination: &Path) {
 
         Command::new("tar")
             .current_dir(destination)
-            .arg("-xzvf")
+            .arg("-xzf")
             .arg(file_to_unpack)
             // .stdout(Stdio::inherit())
             // .stderr(Stdio::inherit())
