@@ -1,4 +1,4 @@
-// yo fuck this code
+// TODO: remove unzipping depends, just use command
 
 use clap::Parser;
 use git2::Repository;
@@ -10,11 +10,6 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::process::Command;
 use std::process::Stdio;
-use tar::Archive;
-use xz2::read::XzDecoder;
-// use zstd::stream;
-use bzip2::read::BzDecoder;
-
 // git_repo requires repo and url to be passed in, change it to just url and seperate using split()
 
 pub mod compilers;
@@ -66,6 +61,26 @@ struct Args {
     repo: String,
 }
 
+pub fn fetch_env(target_env: &str) -> PathBuf {
+    let home_path = match env::var("HOME") {
+        Ok(p) => PathBuf::from(p),
+        Err(_) => {
+            println!("HOME not found, defaulting to tmp");
+            PathBuf::from("/tmp")
+        }
+    };
+
+    let cache = Path::new(&home_path).join(".cache").join("uvi");
+
+    let current = match target_env {
+        "HOME" => home_path,
+        "CACHE" => cache,
+        _ => cache,
+    };
+
+    current
+}
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Args::parse();
 
@@ -76,15 +91,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .split('/')
         .last()
         .unwrap_or("download.tmp");
-    let home_path = match env::var("HOME") {
-        Ok(p) => PathBuf::from(p),
-        Err(_) => {
-            println!("HOME not found, defaulting to tmp");
-            PathBuf::from("/tmp")
-        }
-    };
 
-    let cache = Path::new(&home_path).join(".cache").join("uvi");
+    let cache = fetch_env("CACHE");
+    let home_path = fetch_env("HOME");
+
     let file_path = cache.join(filename);
 
     let query = args.name.as_str();
@@ -103,12 +113,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         target_destination = Path::new(&home_path);
     }
     if args.link {
-        download(
-            query,
-            Path::new(&file_path),
-            Path::new(&cache),
-            target_destination,
-        )?;
+        download(query, Path::new(&file_path))?;
     } else {
         println!("=> Package to download is: {}", query);
         println!("=> Cache path: {:?}", cache);
@@ -136,6 +141,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+//TODO: Maybe remove this fn?
 pub fn sudo(dir: &Path, args: &[&str]) -> Result<bool, Box<dyn std::error::Error>> {
     let status = Command::new("sudo")
         .current_dir(dir)
@@ -146,12 +152,7 @@ pub fn sudo(dir: &Path, args: &[&str]) -> Result<bool, Box<dyn std::error::Error
     Ok(status.success())
 }
 
-fn download(
-    url: &str,
-    destination: &Path,
-    cache: &Path,
-    prefix: &Path,
-) -> Result<(), Box<dyn std::error::Error>> {
+pub fn download(url: &str, destination: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let response = blocking::get(url)?;
     let mut dest = File::create(destination)?;
     let content = response.bytes()?;
@@ -159,7 +160,10 @@ fn download(
     copy(&mut content.as_ref(), &mut dest)?;
     drop(dest);
 
-    unpack(Path::new(destination), &cache, prefix, &cache)?;
+    println!("=> \x1b[32;1mDownloaded file successfully!\x1b[0m");
+    println!("{:?}", destination.parent().unwrap());
+
+    unpack(destination, destination.parent().unwrap());
 
     Ok(())
 }
@@ -216,7 +220,7 @@ fn git_repo(
 
                 println!("=> \x1b[32;1mSucessfully cloned: {:?}\x1b[0m", repo_path);
 
-                install(&repo_path, prefix, cache)?;
+                install(&repo_path)?;
             }
             Err(e) => panic!("=> Failed to clone: {}", e),
         };
@@ -224,52 +228,54 @@ fn git_repo(
     Ok(())
 }
 
-fn unpack(
-    file_to_unpack: &Path,
-    destination: &Path,
-    prefix: &Path,
-    cache: &Path,
-) -> Result<PathBuf, Box<dyn std::error::Error>> {
-    let file = File::open(file_to_unpack)?;
+pub fn unpack(file_to_unpack: &Path, destination: &Path) {
+    let file = File::open(file_to_unpack);
 
-    if file_to_unpack.extension().map_or(false, |ext| ext == "xz") {
-        println!("=> XZ file detected! starting unpack process..");
+    if file_to_unpack.ends_with("z") {
+        println!("=> \x1b[33;1mTar detected, unzipping with xzvf..");
 
-        let decompressor = XzDecoder::new(file);
-        let mut archive = Archive::new(decompressor);
-
-        archive.unpack(destination)?;
-    } else if file_to_unpack.extension().map_or(false, |ext| ext == "zst") {
-        println!("=> ZST file detected! starting unpack process..");
-
-        // stream::copy_decode(file, destination)?; //not working
-    } else if file_to_unpack.extension().map_or(false, |ext| ext == "bz") {
-        println!("=> BZ file detected! starting unpack proces..");
-
-        let _decompressor = BzDecoder::new(file);
-
-        //TODO
+        Command::new("tar")
+            .current_dir(destination)
+            .arg("-xzvf")
+            .arg(file_to_unpack)
+            .stdout(Stdio::inherit())
+            .stderr(Stdio::inherit())
+            .status();
     }
 
-    let unpacked_file = file_to_unpack
-        .file_stem()
-        .and_then(|s| Path::new(s).file_stem())
-        .and_then(|s| s.to_str())
-        .unwrap_or_default();
+    // if file_to_unpack.extension().map_or(false, |ext| ext == "xz") {
+    //     println!("=>\x1b[33;1m File extension detected! starting unpack process..\x1b[0m");
 
-    install(&destination.join(unpacked_file.to_string()), prefix, &cache)?;
-    // return Ok(destination.to_path_buf());
+    //     let decompressor = XzDecoder::new(file);
+    //     let mut archive = Archive::new(decompressor);
 
-    Err("=> File ext. not supported.".into())
+    //     archive.unpack(destination)?;
+    // } else if file_to_unpack.extension().map_or(false, |ext| ext == "zst") {
+    //     println!("=> ZST file detected! starting unpack process..");
+
+    //     // stream::copy_decode(file, destination)?; //not working
+    // } else if file_to_unpack.extension().map_or(false, |ext| ext == "bz") {
+    //     println!("=> BZ file detected! starting unpack proces..");
+
+    //     let _decompressor = BzDecoder::new(file);
+
+    //     //TODO
+    // }
+
+    // let unpacked_file = file_to_unpack
+    //     .file_stem()
+    //     .and_then(|s| Path::new(s).file_stem())
+    //     .and_then(|s| s.to_str())
+    //     .unwrap_or_default();
+
+    // install(&destination.join(unpacked_file.to_string()))?;
+
+    // Err("=> File ext. not supported.".into())
 }
 
-fn install(
-    destination: &Path,
-    install_dir: &Path,
-    cache: &Path,
-) -> Result<(), Box<dyn std::error::Error>> {
+fn install(destination: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let _dest_str = destination.to_str();
-    let inst_str = install_dir.to_string_lossy();
+    let inst_str = "/usr";
 
     let args = Args::parse();
     let build_args = format!("{:?}", args.bargs);
@@ -316,7 +322,7 @@ fn install(
     } else if destination.join("PKGBUILD").exists() {
         println!("=> Found PKGBUILD, building with makepkg..");
 
-        compilers::pkgbuild::build(destination, cache.to_str().unwrap());
+        compilers::pkgbuild::build(destination);
     } else {
         println!("=> No supported build files found, exiting..");
     }
