@@ -1,3 +1,6 @@
+//TODO: merge the two parse functions, replace pkgver found in the source url,
+// allow for newline in source url
+
 use regex::Regex;
 use std::collections::HashMap;
 use std::fs;
@@ -8,6 +11,16 @@ pub fn build(src_dir: &Path, cache: &str) {
     let pkgbuild_path = src_dir.join("PKGBUILD");
 
     make(&pkgbuild_path);
+}
+
+fn parse_url(content: &str) -> Option<String> {
+    let re = Regex::new(r"(?s)source=\(.*?::(?P<url>[^ \)'\s]+)").unwrap();
+
+    re.captures(content).map(|caps| {
+        caps["url"]
+            .trim_matches(|c| c == '"' || c == '\'')
+            .to_string()
+    })
 }
 
 fn parse(content: &str) -> HashMap<String, String> {
@@ -31,6 +44,11 @@ fn make(pkgbuild_path: &Path) {
     let vars = parse(&content);
     let pkgname = vars.get("pkgname").map(|s| s.as_str()).unwrap_or("null");
     let pkgver = vars.get("pkgver").map(|s| s.as_str()).unwrap_or("1.0.0");
+    let pkg_url = if let Some(url) = parse_url(&content) {
+        println!("{url}") //TODO
+    } else {
+        eprintln!("=> \x1b[31;mERROR: source url not found?\x1b[0m");
+    };
 
-    println!("{pkgname}");
+    // println!("{:?}", src_url);
 }
