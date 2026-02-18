@@ -4,13 +4,14 @@
 * Make
 * Ninja
 * Meson
-* Makepkg (currently)
 
 ### Supported Types
-* .xz
+* .xz .gz
 * .git
 * PKGBUILD
 * Meson packages
+* Make packages
+
 
 ### Future Plans
 * support for .rpm
