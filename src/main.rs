@@ -141,17 +141,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-//TODO: Maybe remove this fn?
-pub fn sudo(dir: &Path, args: &[&str]) -> Result<bool, Box<dyn std::error::Error>> {
-    let status = Command::new("sudo")
-        .current_dir(dir)
-        .args(args)
-        .stdout(Stdio::inherit())
-        .stderr(Stdio::inherit())
-        .status()?;
-    Ok(status.success())
-}
-
 pub fn download(url: &str, destination: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let response = blocking::get(url)?;
     let mut dest = File::create(destination)?;
