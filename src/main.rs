@@ -221,7 +221,7 @@ pub fn unpack(file_to_unpack: &Path, destination: &Path) {
 
     if file_to_unpack
         .extension()
-        .map_or(false, |ext| ext == "gz" || ext == "xz")
+        .map_or(false, |ext| ext == "gz" || ext == "xz" || ext == "zst*)
     {
         println!("=> \x1b[33;1mTar detected, unzipping with xzvf..\x1b[0;m");
 
@@ -233,7 +233,7 @@ pub fn unpack(file_to_unpack: &Path, destination: &Path) {
             // .stderr(Stdio::inherit())
             .status()
             .expect("Failed to unzip");
-    } else if file_to_unpack.extension().map_or(false, |ext| ext == "zst") {
+    } else if file_to_unpack.extension().map_or(false, |ext| ext == "zip") {
         println!("ugh")
     }
 }
