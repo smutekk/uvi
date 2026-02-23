@@ -76,8 +76,8 @@ fn make(pkgbuild_path: &Path, src_dir: &Path) {
         .map(|s| s.as_str())
         .unwrap_or(pkgname);
 
-    let buildfn: &str = result.functions.get("build").unwrap().as_str();
-    let formatted_buildfn = buildfn
+    let build_fn: &str = result.functions.get("build").unwrap().as_str();
+    let formatted_build_fn = build_fn
         .replace("$srcdir/", src_dir_str)
         .replace("$pkgver", pkgver)
         .replace("$pkgname", pkgname)
@@ -85,15 +85,28 @@ fn make(pkgbuild_path: &Path, src_dir: &Path) {
         .replace("$pkgbase", pkgbase)
         .replace("$_name", _name);
 
-    let url: &str = &result.url.expect("None");
-
-    let formatted_url = url
-        .replace("git+", "")
+    let package_fn: &str = result.functions.get("package").unwrap().as_str();
+    let formatted_package_fn = package_fn
+        .replace("$srcdir/", src_dir_str)
         .replace("$pkgver", pkgver)
         .replace("$pkgname", pkgname)
         .replace("$_pkgname", _pkgname)
         .replace("$pkgbase", pkgbase)
-        .replace("$_name", _name);
+        .replace("$_name", _name)
+        .replace("${folder}", "linux-unpacked");
+
+    let url: &str = &result.url.expect("None");
+
+    let formatted_url = url
+        .replace("git+", "")
+        .replace("${pkgver}", pkgver)
+        .replace("${pkgname}", pkgname)
+        .replace("$pkgname", pkgname)
+        .replace("$pkgver", pkgver)
+        .replace("$_pkgname", _pkgname)
+        .replace("$pkgbase", pkgbase)
+        .replace("$_name", _name)
+        .replace("{,.sig}", "");
 
     println!("{formatted_url}");
 
@@ -104,8 +117,58 @@ fn make(pkgbuild_path: &Path, src_dir: &Path) {
     match download(&formatted_url, &formatted_path) {
         Ok(_meow) => {
             println!("=> \x1b[32;1mRunning build() function!\x1b[0m");
-            run_command(src_dir_str, "bash", &["-c", &formatted_buildfn]);
+            match run_command(src_dir_str, "bash", &["-c", &formatted_build_fn]) {
+                Ok(_meow) => {
+                    println!("=> Installing package..");
+                    run_command(src_dir_str, "sudo", &["bash", "-c", &formatted_package_fn])
+                        .expect("Failed to install");
+                }
+                Err(_meow) => println!("=> \x1b[31;1mERR: {_meow}\x1b[0m"),
+            }
         }
-        Err(err) => print!("=> \x1b[31;1mFailed to download: {err}\x1b[0m"),
+        Err(err) => print!("=> \x1b[31;1mERR: {err}\x1b[0m"),
     };
+}
+
+fn format_pkgbuild(input: &str) -> &str {
+    let content = fs::read_to_string(pkgbuild_path).unwrap();
+    let src_dir_str = src_dir.to_str().expect("failed");
+
+    let result = parse(&content);
+    let _pkgname = result
+        .variables
+        .get("_pkgname")
+        .map(|s| s.as_str())
+        .unwrap_or("null");
+    let pkgbase = result
+        .variables
+        .get("pkgbase")
+        .map(|s| s.as_str())
+        .unwrap_or("null");
+    let pkgname = result
+        .variables
+        .get("pkgname")
+        .map(|s| s.as_str())
+        .unwrap_or("null");
+    let pkgver = result
+        .variables
+        .get("pkgver")
+        .map(|s| s.as_str())
+        .unwrap_or("1.0.0");
+    let _name = result
+        .variables
+        .get("_name")
+        .map(|s| s.as_str())
+        .unwrap_or(pkgname);
+
+    let formatted_url = url
+        .replace("git+", "")
+        .replace("${pkgver}", pkgver)
+        .replace("${pkgname}", pkgname)
+        .replace("$pkgname", pkgname)
+        .replace("$pkgver", pkgver)
+        .replace("$_pkgname", _pkgname)
+        .replace("$pkgbase", pkgbase)
+        .replace("$_name", _name)
+        .replace("{,.sig}", "");
 }
