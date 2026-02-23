@@ -3,13 +3,14 @@
 use clap::Parser;
 use git2::Repository;
 use reqwest::blocking;
-use std::env;
-use std::fs::File;
-use std::io::copy;
-use std::path::Path;
-use std::path::PathBuf;
-use std::process::Command;
-use std::process::Stdio;
+use std::{
+    env,
+    fs::File,
+    io::copy,
+    path::{Path, PathBuf},
+    process::{Command, Stdio},
+};
+
 // git_repo requires repo and url to be passed in, change it to just url and seperate using split()
 
 pub mod compilers;
@@ -221,7 +222,7 @@ pub fn unpack(file_to_unpack: &Path, destination: &Path) {
 
     if file_to_unpack
         .extension()
-        .map_or(false, |ext| ext == "gz" || ext == "xz" || ext == "zst*)
+        .map_or(false, |ext| ext == "gz" || ext == "xz" || ext == "zst")
     {
         println!("=> \x1b[33;1mTar detected, unzipping with xzvf..\x1b[0;m");
 
@@ -295,6 +296,20 @@ fn install(destination: &Path) -> Result<(), Box<dyn std::error::Error>> {
     println!("=> Finished installing, installed to: {inst_str}");
 
     Ok(())
+}
+
+pub fn run_command(dir: &str, name: &str, args: &[&str]) {
+    let status = Command::new(name)
+        .current_dir(dir)
+        .args(args)
+        .stdout(Stdio::inherit())
+        .stderr(Stdio::inherit())
+        .status()
+        .expect("Failed to launch the process");
+
+    if !status.success() {
+        std::process::exit(1);
+    }
 }
 
 // // fn deb() {}

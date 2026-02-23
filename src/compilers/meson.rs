@@ -1,9 +1,7 @@
 // Edited version of the meson cargo package.
 
-use regex::Regex;
-use std::fs;
-use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
+use crate::run_command;
+use std::path::PathBuf;
 
 pub fn build(project_dir: &str, build_dir: &str, arguments: &str) {
     run_meson(project_dir, build_dir, arguments);
@@ -28,50 +26,28 @@ fn run_meson(lib: &str, dir: &str, arguments: &str) {
     }
 }
 
-fn run_command(dir: &str, name: &str, args: &[&str]) {
-    let status = Command::new(name)
-        .current_dir(dir)
-        .args(args)
-        .stdout(Stdio::inherit())
-        .stderr(Stdio::inherit())
-        .status()
-        .expect("Failed to launch the process");
+// fn get_deps(project_dir: &str) -> Vec<String> {
+//     let meson_path = Path::new(project_dir).join("meson.build");
 
-    if !status.success() {
-        let deps = get_deps(dir);
+//     let content = match fs::read_to_string(&meson_path) {
+//         Ok(c) => c,
+//         Err(_) => {
+//             eprintln!("Could not read meson.build at {:?}", meson_path);
+//             return vec![];
+//         }
+//     };
 
-        println!("Detected dependencies from meson.build:");
-        for dep in deps {
-            println!(" - {}", dep);
-        }
-        eprintln!("Starting download process..");
+//     let re = Regex::new(r#"dependency\s*\(\s*['"]([^'"]+)['"]"#).unwrap();
 
-        std::process::exit(1);
-    }
-}
+//     let mut deps: Vec<String> = re
+//         .captures_iter(&content)
+//         .map(|cap| cap[1].to_string())
+//         .collect();
 
-fn get_deps(project_dir: &str) -> Vec<String> {
-    let meson_path = Path::new(project_dir).join("meson.build");
-
-    let content = match fs::read_to_string(&meson_path) {
-        Ok(c) => c,
-        Err(_) => {
-            eprintln!("Could not read meson.build at {:?}", meson_path);
-            return vec![];
-        }
-    };
-
-    let re = Regex::new(r#"dependency\s*\(\s*['"]([^'"]+)['"]"#).unwrap();
-
-    let mut deps: Vec<String> = re
-        .captures_iter(&content)
-        .map(|cap| cap[1].to_string())
-        .collect();
-
-    deps.sort();
-    deps.dedup();
-    deps
-}
+//     deps.sort();
+//     deps.dedup();
+//     deps
+// }
 
 fn is_configured(dir: &str) -> bool {
     let mut path = PathBuf::from(dir);

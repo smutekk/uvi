@@ -1,6 +1,6 @@
 //TODO: allow for newline in source url
 
-use crate::download;
+use crate::{download, run_command};
 use regex::Regex;
 use std::collections::HashMap;
 use std::fs;
@@ -48,8 +48,14 @@ fn parse(content: &str) -> ParseResult {
 
 fn make(pkgbuild_path: &Path, src_dir: &Path) {
     let content = fs::read_to_string(pkgbuild_path).unwrap();
+    let src_dir_str = src_dir.to_str().expect("failed");
 
     let result = parse(&content);
+    let _pkgname = result
+        .variables
+        .get("_pkgname")
+        .map(|s| s.as_str())
+        .unwrap_or("null");
     let pkgname = result
         .variables
         .get("pkgname")
@@ -61,6 +67,14 @@ fn make(pkgbuild_path: &Path, src_dir: &Path) {
         .map(|s| s.as_str())
         .unwrap_or("1.0.0");
 
+    let buildfn: &str = result.functions.get("build").unwrap().as_str();
+    let formatted_buildfn = buildfn
+        .replace("$srcdir/", src_dir_str)
+        .replace("$pkgver", pkgver)
+        .replace("$pkgname", pkgname)
+        .replace("$_pkgname", _pkgname);
+    println!("{}", formatted_buildfn);
+
     if let Some(url) = result.url {
         let formatted_url = url.replace("${pkgver}", pkgver);
         let formatted_name = formatted_url.rsplit_once("/").unwrap().1;
@@ -69,6 +83,7 @@ fn make(pkgbuild_path: &Path, src_dir: &Path) {
 
         download(&formatted_url, &formatted_path)
             .expect("Failed to download, possible incorrrect url/path?");
+        run_command(src_dir_str, "bash", &[&formatted_buildfn]);
 
         //TODO:MAKE SURE BUILD THING WORKS
     } else {
