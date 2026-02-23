@@ -2,13 +2,11 @@
 
 use crate::{download, run_command};
 use regex::Regex;
-use std::collections::HashMap;
-use std::fs;
-use std::path::Path;
+use std::{collections::HashMap, fs, path::Path};
 
 #[derive(Debug, Default)]
 struct ParseResult {
-    url: Option<String>,
+    url: HashMap<String, String>,
     variables: HashMap<String, String>,
     functions: HashMap<String, String>,
 }
@@ -22,12 +20,12 @@ pub fn build(src_dir: &Path) {
 fn parse(content: &str) -> ParseResult {
     let mut result = ParseResult::default();
 
-    let url_re = Regex::new(r"(?s)source=\(.*?::(?P<url>[^ \)'\s]+)").unwrap();
-    result.url = url_re.captures(content).map(|caps| {
-        caps["url"]
-            .trim_matches(|c| c == '"' || c == '\'')
-            .to_string()
-    });
+    // let url_re = Regex::new(r"(?s)source=\(.*?::(?P<url>[^ \)'\s]+)").unwrap();
+    // result.url = url_re.captures(content).map(|caps| {
+    //     caps["url"]
+    //         .trim_matches(|c| c == '"' || c == '\'')
+    //         .to_string()
+    // });
 
     let kv_re = Regex::new(r#"(?m)^(?P<key>\w+)=["']?(?P<value>[^"'\n#]+)["']?"#).unwrap(); // god i hate regex
     for caps in kv_re.captures_iter(content) {
@@ -56,6 +54,11 @@ fn make(pkgbuild_path: &Path, src_dir: &Path) {
         .get("_pkgname")
         .map(|s| s.as_str())
         .unwrap_or("null");
+    let pkgbase = result
+        .variables
+        .get("pkgbase")
+        .map(|s| s.as_str())
+        .unwrap_or("null");
     let pkgname = result
         .variables
         .get("pkgname")
@@ -72,21 +75,22 @@ fn make(pkgbuild_path: &Path, src_dir: &Path) {
         .replace("$srcdir/", src_dir_str)
         .replace("$pkgver", pkgver)
         .replace("$pkgname", pkgname)
-        .replace("$_pkgname", _pkgname);
-    println!("{}", formatted_buildfn);
+        .replace("$_pkgname", _pkgname)
+        .replace("$pkgbase", pkgbase);
 
-    if let Some(url) = result.url {
-        let formatted_url = url.replace("${pkgver}", pkgver);
-        let formatted_name = formatted_url.rsplit_once("/").unwrap().1;
+    let url: &str = result.functions.get("source").unwrap().as_str();
+    println!("{url}");
 
-        let formatted_path = src_dir.join(formatted_name);
+    // let formatted_url = url.replace("${pkgver}", pkgver);
+    // let formatted_name = formatted_url.rsplit_once("/").unwrap().1;
 
-        download(&formatted_url, &formatted_path)
-            .expect("Failed to download, possible incorrrect url/path?");
-        run_command(src_dir_str, "bash", &[&formatted_buildfn]);
+    // let formatted_path = src_dir.join(formatted_name);
 
-        //TODO:MAKE SURE BUILD THING WORKS
-    } else {
-        eprintln!("=> \x1b[31;mERROR: source url not found?\x1b[0m");
-    };
+    // match download(&formatted_url, &formatted_path) {
+    //     Ok(_meow) => {
+    //         println!("=> \x1b[32;1mRunning build() function!\x1b[0m");
+    //         run_command(src_dir_str, "bash", &["-c", &formatted_buildfn]);
+    //     }
+    //     Err(err) => print!("=> \x1b[31;1mFailed to download: {err}\x1b[0m"),
+    // };
 }

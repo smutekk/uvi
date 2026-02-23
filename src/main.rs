@@ -1,4 +1,4 @@
-// TODO: remove unzipping depends, just use command
+// TODO: clear cache on start / replace file when downloading
 
 use clap::Parser;
 use git2::Repository;
@@ -33,10 +33,6 @@ struct Args {
     #[arg(long)]
     bargs: Option<String>,
 
-    /// Usable on Uvite
-    #[arg(long)]
-    user: bool,
-
     /// Prefix for installing files
     #[arg(long, default_value = "/usr")]
     prefix: String,
@@ -51,7 +47,7 @@ struct Args {
 
     /// Specify after the name if you set the name to a link
     #[arg(long)]
-    link: bool,
+    url: bool,
 
     /// If you want to use systemd or not
     #[arg(long)]
@@ -85,7 +81,7 @@ pub fn fetch_env(target_env: &str) -> PathBuf {
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Args::parse();
 
-    let mut target_destination = Path::new(&args.prefix);
+    let target_destination = Path::new(&args.prefix);
     let filename = args
         .name
         .as_str()
@@ -110,10 +106,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             &repo,
         )?;
     }
-    if args.user {
-        target_destination = Path::new(&home_path);
-    }
-    if args.link {
+
+    if args.url {
         download(query, Path::new(&file_path))?;
     } else {
         println!("=> Package to download is: {}", query);
