@@ -5,10 +5,12 @@ use git2::Repository;
 use reqwest::blocking;
 use std::{
     env,
-    fs::File,
+    fs::{File, remove_dir_all},
     io::copy,
     path::{Path, PathBuf},
     process::{Command, Stdio},
+    thread::sleep,
+    time::Duration,
 };
 
 // git_repo requires repo and url to be passed in, change it to just url and seperate using split()
@@ -172,7 +174,7 @@ fn git_repo(
     let url_status = blocking::get(&formatted_url)?; // same thing as 
 
     if !url_status.error_for_status().is_ok() {
-        // Make it so that it doesn't loop when retrying
+        // TODO: Make it so that it doesn't loop when retrying
         println!(
             "=> \x1b[31;1mPackage not found in repo:\x1b[0m {} \n\x1b[33;1mTrying backup repo..\x1b[0m (https://archlinux.org/)",
             repo
@@ -196,17 +198,25 @@ fn git_repo(
             destination.to_string_lossy()
         );
 
-        match Repository::clone(url, destination) {
-            Ok(repo) => {
-                let mut dir_work = repo.workdir();
-                let repo_path = dir_work.get_or_insert_with(|| Path::new("/tmp"));
+        if destination.exists() {
+            println!("=> Destination already exists..\n=> Deleting directory in 5 seconds..");
 
-                println!("=> \x1b[32;1mSucessfully cloned: {:?}\x1b[0m", repo_path);
+            sleep(Duration::from_secs_f32(5.0));
 
-                install(&repo_path)?;
-            }
-            Err(e) => panic!("=> Failed to clone: {}", e),
-        };
+            remove_dir_all(destination).expect("Failed to remove destination..");
+
+            match Repository::clone(url, destination) {
+                Ok(repo) => {
+                    let mut dir_work = repo.workdir();
+                    let repo_path = dir_work.get_or_insert_with(|| Path::new("/tmp"));
+
+                    println!("=> \x1b[32;1mSucessfully cloned: {:?}\x1b[0m", repo_path);
+
+                    install(&repo_path)?;
+                }
+                Err(e) => panic!("=> Failed to clone: {}", e),
+            };
+        }
     }
     Ok(())
 }

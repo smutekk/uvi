@@ -1,4 +1,5 @@
-//TODO: allow for newline in source url
+//TODO: check for +git in source
+// TODO: also some PKGBUILDs contain multiple sources??
 
 use crate::{download, run_command};
 use regex::Regex;
@@ -6,7 +7,7 @@ use std::{collections::HashMap, fs, path::Path};
 
 #[derive(Debug, Default)]
 struct ParseResult {
-    url: HashMap<String, String>,
+    url: Option<String>, // TODO: fix this [allow for newline]
     variables: HashMap<String, String>,
     functions: HashMap<String, String>,
 }
@@ -20,12 +21,13 @@ pub fn build(src_dir: &Path) {
 fn parse(content: &str) -> ParseResult {
     let mut result = ParseResult::default();
 
-    // let url_re = Regex::new(r"(?s)source=\(.*?::(?P<url>[^ \)'\s]+)").unwrap();
-    // result.url = url_re.captures(content).map(|caps| {
-    //     caps["url"]
-    //         .trim_matches(|c| c == '"' || c == '\'')
-    //         .to_string()
-    // });
+    let url_re =
+        Regex::new(r#"(?s)source=\(\s*["']?(?:(?P<alias>[^"'\s)]+)::)?(?P<url>[^"'\s)]+)"#)
+            .unwrap();
+
+    if let Some(caps) = url_re.captures(content) {
+        result.url = Some(caps["url"].to_string());
+    }
 
     let kv_re = Regex::new(r#"(?m)^(?P<key>\w+)=["']?(?P<value>[^"'\n#]+)["']?"#).unwrap(); // god i hate regex
     for caps in kv_re.captures_iter(content) {
@@ -33,7 +35,6 @@ fn parse(content: &str) -> ParseResult {
         let value = caps["value"].trim().to_string();
         result.variables.insert(key, value);
     }
-
     let func_re = Regex::new(r"(?m)^(?P<name>\w+)\s*\(\s*\)\s*\{(?P<body>(?s).*?)\n\}").unwrap();
     for caps in func_re.captures_iter(content) {
         let name = caps["name"].to_string();
@@ -69,6 +70,11 @@ fn make(pkgbuild_path: &Path, src_dir: &Path) {
         .get("pkgver")
         .map(|s| s.as_str())
         .unwrap_or("1.0.0");
+    let _name = result
+        .variables
+        .get("_name")
+        .map(|s| s.as_str())
+        .unwrap_or(pkgname);
 
     let buildfn: &str = result.functions.get("build").unwrap().as_str();
     let formatted_buildfn = buildfn
@@ -76,21 +82,30 @@ fn make(pkgbuild_path: &Path, src_dir: &Path) {
         .replace("$pkgver", pkgver)
         .replace("$pkgname", pkgname)
         .replace("$_pkgname", _pkgname)
-        .replace("$pkgbase", pkgbase);
+        .replace("$pkgbase", pkgbase)
+        .replace("$_name", _name);
 
-    let url: &str = result.functions.get("source").unwrap().as_str();
-    println!("{url}");
+    let url: &str = &result.url.expect("None");
 
-    // let formatted_url = url.replace("${pkgver}", pkgver);
-    // let formatted_name = formatted_url.rsplit_once("/").unwrap().1;
+    let formatted_url = url
+        .replace("git+", "")
+        .replace("$pkgver", pkgver)
+        .replace("$pkgname", pkgname)
+        .replace("$_pkgname", _pkgname)
+        .replace("$pkgbase", pkgbase)
+        .replace("$_name", _name);
 
-    // let formatted_path = src_dir.join(formatted_name);
+    println!("{formatted_url}");
 
-    // match download(&formatted_url, &formatted_path) {
-    //     Ok(_meow) => {
-    //         println!("=> \x1b[32;1mRunning build() function!\x1b[0m");
-    //         run_command(src_dir_str, "bash", &["-c", &formatted_buildfn]);
-    //     }
-    //     Err(err) => print!("=> \x1b[31;1mFailed to download: {err}\x1b[0m"),
-    // };
+    let formatted_name = formatted_url.rsplit_once("/").unwrap().1;
+
+    let formatted_path = src_dir.join(formatted_name);
+
+    match download(&formatted_url, &formatted_path) {
+        Ok(_meow) => {
+            println!("=> \x1b[32;1mRunning build() function!\x1b[0m");
+            run_command(src_dir_str, "bash", &["-c", &formatted_buildfn]);
+        }
+        Err(err) => print!("=> \x1b[31;1mFailed to download: {err}\x1b[0m"),
+    };
 }
