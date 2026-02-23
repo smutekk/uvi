@@ -176,7 +176,7 @@ fn git_repo(
     if !url_status.error_for_status().is_ok() {
         // TODO: Make it so that it doesn't loop when retrying
         println!(
-            "=> \x1b[31;1mPackage not found in repo:\x1b[0m {} \n\x1b[33;1mTrying backup repo..\x1b[0m (https://archlinux.org/)",
+            "=> \x1b[31;1mPackage not found in repo:\x1b[0m {} \n\x1b[33;1m=> Trying backup repo..\x1b[0m (https://archlinux.org/)",
             repo
         );
         let formatted_url =
@@ -205,6 +205,18 @@ fn git_repo(
 
             remove_dir_all(destination).expect("Failed to remove destination..");
 
+            match Repository::clone(url, destination) {
+                Ok(repo) => {
+                    let mut dir_work = repo.workdir();
+                    let repo_path = dir_work.get_or_insert_with(|| Path::new("/tmp"));
+
+                    println!("=> \x1b[32;1mSucessfully cloned: {:?}\x1b[0m", repo_path);
+
+                    install(&repo_path)?;
+                }
+                Err(e) => panic!("=> Failed to clone: {}", e),
+            };
+        } else {
             match Repository::clone(url, destination) {
                 Ok(repo) => {
                     let mut dir_work = repo.workdir();
@@ -302,7 +314,7 @@ fn install(destination: &Path) -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-pub fn run_command(dir: &str, name: &str, args: &[&str]) {
+pub fn run_command(dir: &str, name: &str, args: &[&str]) -> Result<(), Box<dyn std::error::Error>> {
     let status = Command::new(name)
         .current_dir(dir)
         .args(args)
@@ -314,6 +326,8 @@ pub fn run_command(dir: &str, name: &str, args: &[&str]) {
     if !status.success() {
         std::process::exit(1);
     }
+
+    Ok(())
 }
 
 // // fn deb() {}

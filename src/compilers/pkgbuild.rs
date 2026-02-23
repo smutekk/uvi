@@ -50,91 +50,36 @@ fn make(pkgbuild_path: &Path, src_dir: &Path) {
     let src_dir_str = src_dir.to_str().expect("failed");
 
     let result = parse(&content);
-    let _pkgname = result
-        .variables
-        .get("_pkgname")
-        .map(|s| s.as_str())
-        .unwrap_or("null");
-    let pkgbase = result
-        .variables
-        .get("pkgbase")
-        .map(|s| s.as_str())
-        .unwrap_or("null");
-    let pkgname = result
-        .variables
-        .get("pkgname")
-        .map(|s| s.as_str())
-        .unwrap_or("null");
-    let pkgver = result
-        .variables
-        .get("pkgver")
-        .map(|s| s.as_str())
-        .unwrap_or("1.0.0");
-    let _name = result
-        .variables
-        .get("_name")
-        .map(|s| s.as_str())
-        .unwrap_or(pkgname);
+
+    let url: &str = &result.url.expect("Failed");
+
+    // println!("{url}");
 
     let build_fn: &str = result.functions.get("build").unwrap().as_str();
-    let formatted_build_fn = build_fn
-        .replace("$srcdir/", src_dir_str)
-        .replace("$pkgver", pkgver)
-        .replace("$pkgname", pkgname)
-        .replace("$_pkgname", _pkgname)
-        .replace("$pkgbase", pkgbase)
-        .replace("$_name", _name);
+    let pkg_fn: &str = result.functions.get("package").unwrap().as_str();
 
-    let package_fn: &str = result.functions.get("package").unwrap().as_str();
-    let formatted_package_fn = package_fn
-        .replace("$srcdir/", src_dir_str)
-        .replace("$pkgver", pkgver)
-        .replace("$pkgname", pkgname)
-        .replace("$_pkgname", _pkgname)
-        .replace("$pkgbase", pkgbase)
-        .replace("$_name", _name)
-        .replace("${folder}", "linux-unpacked");
-
-    let url: &str = &result.url.expect("None");
-
-    let formatted_url = url
-        .replace("git+", "")
-        .replace("${pkgver}", pkgver)
-        .replace("${pkgname}", pkgname)
-        .replace("$pkgname", pkgname)
-        .replace("$pkgver", pkgver)
-        .replace("$_pkgname", _pkgname)
-        .replace("$pkgbase", pkgbase)
-        .replace("$_name", _name)
-        .replace("{,.sig}", "");
-
-    println!("{formatted_url}");
+    let formatted_url = format_pkgbuild(url, &content, src_dir_str);
+    let formatted_pkg_fn = format_pkgbuild(pkg_fn, &content, src_dir_str);
+    let formatted_build_fn = format_pkgbuild(build_fn, &content, src_dir_str);
 
     let formatted_name = formatted_url.rsplit_once("/").unwrap().1;
-
     let formatted_path = src_dir.join(formatted_name);
 
     match download(&formatted_url, &formatted_path) {
         Ok(_meow) => {
             println!("=> \x1b[32;1mRunning build() function!\x1b[0m");
             match run_command(src_dir_str, "bash", &["-c", &formatted_build_fn]) {
-                Ok(_meow) => {
-                    println!("=> Installing package..");
-                    run_command(src_dir_str, "sudo", &["bash", "-c", &formatted_package_fn])
-                        .expect("Failed to install");
-                }
-                Err(_meow) => println!("=> \x1b[31;1mERR: {_meow}\x1b[0m"),
-            }
+                Ok(_) => println!("Ok!"),
+                Err(_e) => println!("Err"),
+            };
         }
         Err(err) => print!("=> \x1b[31;1mERR: {err}\x1b[0m"),
     };
 }
 
-fn format_pkgbuild(input: &str) -> &str {
-    let content = fs::read_to_string(pkgbuild_path).unwrap();
-    let src_dir_str = src_dir.to_str().expect("failed");
-
+fn format_pkgbuild(input: &str, content: &str, src_dir_str: &str) -> String {
     let result = parse(&content);
+
     let _pkgname = result
         .variables
         .get("_pkgname")
@@ -161,14 +106,17 @@ fn format_pkgbuild(input: &str) -> &str {
         .map(|s| s.as_str())
         .unwrap_or(pkgname);
 
-    let formatted_url = url
-        .replace("git+", "")
-        .replace("${pkgver}", pkgver)
-        .replace("${pkgname}", pkgname)
-        .replace("$pkgname", pkgname)
+    let formatted = input
+        .replace("$srcdir/", src_dir_str)
         .replace("$pkgver", pkgver)
+        .replace("$pkgname", pkgname)
         .replace("$_pkgname", _pkgname)
         .replace("$pkgbase", pkgbase)
         .replace("$_name", _name)
+        .replace("${folder}", "linux-unpacked")
+        .replace("${pkgver}", pkgver)
+        .replace("${pkgname}", pkgname)
         .replace("{,.sig}", "");
+
+    formatted
 }
