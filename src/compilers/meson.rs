@@ -11,8 +11,9 @@ pub fn build(project_dir: &str, build_dir: &str, arguments: &str) {
 fn run_ninja(project_dir: &str, build_dir: &str) {
     let args = vec!["-C", build_dir];
     let install_args = vec!["-C", build_dir, "install"];
-    run_command(project_dir, "ninja", &args);
-    run_command(project_dir, "ninja", &install_args);
+    run_command(project_dir, "ninja", &args).expect("=>\x1b[31m ERR: failed to run ninja");
+    run_command(project_dir, "ninja", &install_args)
+        .expect("=>\x1b[31m ERR: failed to run ninja [install]");
 }
 
 fn run_meson(lib: &str, dir: &str, arguments: &str) {
@@ -22,7 +23,7 @@ fn run_meson(lib: &str, dir: &str, arguments: &str) {
 
         args.extend(extra_args);
 
-        run_command(lib, "meson", &args);
+        run_command(lib, "meson", &args).expect("=>\x1b[31m ERR: failed to run meson");
     }
 }
 

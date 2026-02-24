@@ -1,5 +1,7 @@
 //TODO: check for +git in source
 // TODO: also some PKGBUILDs contain multiple sources??
+// TODO: also stop redefining variables / maybe const would work here?
+// TODO: work around packages having like 8 names in parenthesis (ghostty ghostty-terminfo)
 
 use crate::{download, run_command};
 use regex::Regex;
@@ -45,6 +47,39 @@ fn parse(content: &str) -> ParseResult {
     result
 }
 
+fn download_pkgbuild(pkg_fn_name: &str, url: &str, content: &str, src_dir_str: &str) {
+    // TODO: REALLY REALLY BAD
+
+    let result = parse(&content);
+
+    // println!("{pkg_fn_name}");
+
+    let pkg_fn: &str = result.functions.get(pkg_fn_name).unwrap().as_str();
+    let build_fn: &str = result.functions.get("build").unwrap().as_str();
+
+    let formatted_url = format_pkgbuild(url, &content, src_dir_str);
+    let formatted_pkg_fn = format_pkgbuild(pkg_fn, &content, src_dir_str);
+    let formatted_build_fn = format_pkgbuild(build_fn, &content, src_dir_str);
+
+    let formatted_name = formatted_url.rsplit_once("/").unwrap().1;
+    let formatted_path = Path::new(src_dir_str).join(formatted_name);
+
+    match download(&formatted_url, &formatted_path) {
+        Ok(_meow) => {
+            println!("=> \x1b[32;1mRunning build() function!\x1b[0m");
+            match run_command(src_dir_str, "bash", &["-c", &formatted_build_fn]) {
+                Ok(_) => {
+                    println!("=> \x1b[32;1mRunning package() function!\x1b[0m");
+                    run_command(src_dir_str, "sudo", &["bash", "-c", &formatted_pkg_fn])
+                        .expect("=> \x1b[31;1mERR: Failed to run command..");
+                }
+                Err(_e) => println!("Err"),
+            };
+        }
+        Err(err) => println!("=> \x1b[31;1mERR: {err}\x1b[0m"),
+    };
+}
+
 fn make(pkgbuild_path: &Path, src_dir: &Path) {
     let content = fs::read_to_string(pkgbuild_path).unwrap();
     let src_dir_str = src_dir.to_str().expect("failed");
@@ -61,47 +96,27 @@ fn make(pkgbuild_path: &Path, src_dir: &Path) {
 
     // println!("{url}");
 
-    let build_fn: &str = result.functions.get("build").unwrap().as_str();
-
     let pkg_fn_name;
     let fmt_name = format!("package_{pkgname}");
 
     if let Some(pkg) = result.functions.get("package") {
         println!("=> \x1b[32;1mFound package()!\x1b[0m");
-        pkg_fn_name = pkg;
+        println!("{pkg}");
+        pkg_fn_name = "package";
+
+        download_pkgbuild(pkg_fn_name, url, &content, src_dir_str);
     } else {
         println!("=> \x1b[33;1mTrying package_{}()\x1b[0m", pkgname);
         pkg_fn_name = &fmt_name;
+
+        download_pkgbuild(pkg_fn_name, url, &content, src_dir_str);
     }
-    let pkg_fn = result.functions.get(pkg_fn_name).unwrap().as_str(); // TODO; doesnt wor
     // result
     // .functions
     // .get("package")
     // .expect("no pkg(), try pkg_name");
     // .unwrap()
     // .as_str();
-
-    let formatted_url = format_pkgbuild(url, &content, src_dir_str);
-    let formatted_pkg_fn = format_pkgbuild(pkg_fn, &content, src_dir_str);
-    let formatted_build_fn = format_pkgbuild(build_fn, &content, src_dir_str);
-
-    let formatted_name = formatted_url.rsplit_once("/").unwrap().1;
-    let formatted_path = src_dir.join(formatted_name);
-
-    match download(&formatted_url, &formatted_path) {
-        Ok(_meow) => {
-            println!("=> \x1b[32;1mRunning build() function!\x1b[0m");
-            match run_command(src_dir_str, "bash", &["-c", &formatted_build_fn]) {
-                Ok(_) => {
-                    println!("=> \x1b[31;1mRunning package() function!\x1b[0m");
-                    run_command(src_dir_str, "sudo", &["-c", &formatted_pkg_fn])
-                        .expect("=> \x1b[31;1mERR: Failed to run command..");
-                }
-                Err(_e) => println!("Err"),
-            };
-        }
-        Err(err) => println!("=> \x1b[31;1mERR: {err}\x1b[0m"),
-    };
 }
 
 fn format_pkgbuild(input: &str, content: &str, src_dir_str: &str) -> String {
