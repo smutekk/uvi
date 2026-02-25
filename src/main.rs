@@ -55,7 +55,7 @@ struct Args {
     url: bool,
 
     /// Repo to search
-    #[arg(long, default_value = "https://aur.archlinux.org/")]
+    #[arg(long, default_value = "aur")]
     repo: String,
 }
 
@@ -103,7 +103,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let query = args.name.as_str();
     let repo = match args.repo.as_str() {
-        "arch" => "https://aur.archlinux.org/",
+        "aur" => "https://aur.archlinux.org/",
         "void" => "https://",
         _ => "https://aur.archlinux.org/",
     };
@@ -324,7 +324,7 @@ fn install(destination: &Path) -> Result<(), Box<dyn std::error::Error>> {
 
         compilers::pkgbuild::build(destination);
     } else {
-        println!("=> No supported build files found, exiting..");
+        println!("=> \x1b[31;1mERR:\x1b[0mno supported build files found, exiting..");
     }
 
     println!("=>\x1b[32;1m SUC:\x1b[0m Successfully installed to: {inst_str}!");

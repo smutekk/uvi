@@ -47,25 +47,25 @@ fn parse(content: &str) -> ParseResult {
 }
 
 fn download_pkgbuild(pkg_fn_name: &str, url: &str, content: &str, src_dir_str: &str) {
-    let result = parse(&content);
+    let result: ParseResult = parse(&content);
 
-    let pkg_error = format!("echo '=> \x1b[1mINFO:\x1b[0m No prepare() function.'");
+    let pkg_error: String = format!("echo '=> \x1b[1mINFO:\x1b[0m No prepare() function.'");
 
     let pkg_fn: &str = result.functions.get(pkg_fn_name).unwrap().as_str();
     let build_fn: &str = result.functions.get("build").unwrap().as_str();
-    let prepare_fn = result
+    let prepare_fn: &str = result
         .functions
         .get("prepare")
         .unwrap_or(&pkg_error)
         .as_str();
 
-    let formatted_url = format_pkgbuild(url, &content, src_dir_str);
-    let formatted_pkg_fn = format_pkgbuild(pkg_fn, &content, src_dir_str);
-    let formatted_build_fn = format_pkgbuild(build_fn, &content, src_dir_str);
+    let formatted_url: String = format_pkgbuild(url, &content, src_dir_str);
+    let formatted_pkg_fn: String = format_pkgbuild(pkg_fn, &content, src_dir_str);
+    let formatted_build_fn: String = format_pkgbuild(build_fn, &content, src_dir_str);
     // let formatted_prepare_fn = format_pkgbuild(prepare_fn, &content, src_dir_str);
     // TODO: run_commmand with this panics??
 
-    let formatted_name = formatted_url.rsplit_once("/").unwrap().1;
+    let formatted_name: &str = formatted_url.rsplit_once("/").unwrap().1;
     let formatted_path = Path::new(src_dir_str).join(formatted_name);
 
     match download(&formatted_url, &formatted_path) {
