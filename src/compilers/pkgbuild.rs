@@ -1,5 +1,6 @@
 // TODO: also stop redefining variables / maybe const would work here?
-// TODO: work around packages having like 8 names in parenthesis (ghostty ghostty-terminfo)
+// TODO: download all packages that have like 8 names in parenthesis (ghostty ghostty-terminfo)
+// TODO: new parse function that allows for newlines / cmake_options=(1 \n 2)
 
 use crate::{download, run_command};
 use regex::Regex;
@@ -46,8 +47,6 @@ fn parse(content: &str) -> ParseResult {
 }
 
 fn download_pkgbuild(pkg_fn_name: &str, url: &str, content: &str, src_dir_str: &str) {
-    // TODO: REALLY REALLY BAD
-
     let result = parse(&content);
 
     let pkg_error = format!("echo '=> \x1b[1mINFO:\x1b[0m No prepare() function.'");
@@ -63,7 +62,8 @@ fn download_pkgbuild(pkg_fn_name: &str, url: &str, content: &str, src_dir_str: &
     let formatted_url = format_pkgbuild(url, &content, src_dir_str);
     let formatted_pkg_fn = format_pkgbuild(pkg_fn, &content, src_dir_str);
     let formatted_build_fn = format_pkgbuild(build_fn, &content, src_dir_str);
-    let formatted_prepare_fn = format_pkgbuild(prepare_fn, &content, src_dir_str);
+    // let formatted_prepare_fn = format_pkgbuild(prepare_fn, &content, src_dir_str);
+    // TODO: run_commmand with this panics??
 
     let formatted_name = formatted_url.rsplit_once("/").unwrap().1;
     let formatted_path = Path::new(src_dir_str).join(formatted_name);
@@ -207,6 +207,7 @@ fn format_pkgbuild(input: &str, content: &str, src_dir_str: &str) -> String {
         .replace("$pkgbase", pkgbase)
         .replace("$_name", _name)
         .replace("$url", pkg_url)
+        .replace("${url}", pkg_url)
         .replace("${folder}", "linux-unpacked")
         .replace("${pkgver}", pkgver)
         .replace("${pkgname}", pkgname)

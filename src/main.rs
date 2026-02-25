@@ -1,5 +1,6 @@
 // TODO: Check if targetted download is > current, if so; ask user confirmation adn then replace
 // TODO: get pkg-conf working!!
+// TODO: --reponame (--void, --arch, --redhat)
 
 use clap::Parser;
 use git2::Repository;
@@ -53,10 +54,6 @@ struct Args {
     #[arg(long)]
     url: bool,
 
-    /// If you want to use systemd or not
-    #[arg(long)]
-    systemd: bool,
-
     /// Repo to search
     #[arg(long, default_value = "https://aur.archlinux.org/")]
     repo: String,
@@ -105,7 +102,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let file_path = cache.join(filename);
 
     let query = args.name.as_str();
-    let repo = args.repo.as_str();
+    let repo = match args.repo.as_str() {
+        "arch" => "https://aur.archlinux.org/",
+        "void" => "https://",
+        _ => "https://aur.archlinux.org/",
+    };
 
     if query.ends_with(".git") {
         git_repo(
