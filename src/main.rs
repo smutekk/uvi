@@ -1,4 +1,5 @@
-// TODO: clear cache on start / replace file when downloading
+// TODO: Check if targetted download is > current, if so; ask user confirmation adn then replace
+// TODO: get pkg-conf working!!
 
 use clap::Parser;
 use git2::Repository;
@@ -7,6 +8,7 @@ use std::{
     env,
     fs::{File, remove_dir_all},
     io::copy,
+    panic,
     path::{Path, PathBuf},
     process::{Command, Stdio},
     thread::sleep,
@@ -81,6 +83,12 @@ pub fn fetch_env(target_env: &str) -> PathBuf {
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // panic::set_hook(Box::new(|_| {
+    //     println!(
+    //         "\n!! ERROR !! ERROR !!\n yo wtf why did it panic (query probably doesnt exist) \n!! ERROR !! ERROR !!"
+    //     )
+    // }));
+
     let args = Args::parse();
 
     let target_destination = Path::new(&args.prefix);
@@ -92,7 +100,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .unwrap_or("download.tmp");
 
     let cache = fetch_env("CACHE");
-    let home_path = fetch_env("HOME");
+    let _home_path = fetch_env("HOME");
 
     let file_path = cache.join(filename);
 
@@ -112,8 +120,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     if args.url {
         download(query, Path::new(&file_path))?;
     } else {
-        println!("=> Package to download is: {}", query);
-        println!("=> Cache path: {:?}", cache);
+        println!("=> \x1b[1mINFO:\x1b[0m Package to download is: {}", query);
+        println!("=> \x1b[1mINFO:\x1b[0m Cache path: {:?}", cache);
 
         if repo == "https://aur.archlinux.org/" {
             git_repo(
@@ -132,9 +140,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         // use pkg-config to find installed package and then uninstall
     }
 
-    println!("=> Home dir is: {:?}", home_path);
-    println!("=> Prefix is: {}", target_destination.display());
-
     Ok(())
 }
 
@@ -146,7 +151,7 @@ pub fn download(url: &str, destination: &Path) -> Result<(), Box<dyn std::error:
     copy(&mut content.as_ref(), &mut dest)?;
     drop(dest);
 
-    println!("=> \x1b[32;1mDownloaded file successfully!\x1b[0m");
+    println!("=> \x1b[32;1mSUC:\x1b[0m Downloaded file successfully!");
 
     unpack(destination, destination.parent().unwrap());
 
@@ -160,15 +165,15 @@ fn git_repo(
     cache: &Path,
     repo: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    println!("=> \x1b[33mTesting if repo exists..\x1b[0m");
+    println!("=> \x1b[33;1mTRY:\x1b[0m Testing if repo exists..");
 
-    println!("=> Set repo: {}", &repo);
-    println!("=> Set url: {}", &url);
+    println!("=> \x1b[1mINFO:\x1b[0m Set repo is: {}", &repo);
+    println!("=> \x1b[1mINFO:\x1b[0m Set url is: {}", &url);
 
     let git_pkg_name = &url.rsplit_once("/").unwrap().1;
     let pkg_name = git_pkg_name.rsplit_once(".").unwrap().0;
 
-    println!("=> \x1b[1mPackage name: {pkg_name}\x1b[0m");
+    println!("=> \x1b[1mINFO:\x1b[0m Package name: {pkg_name}");
 
     let formatted_url = format!("{repo}packages/{pkg_name}"); // not finding anything in aur
     let url_status = blocking::get(&formatted_url)?; // same thing as 
@@ -176,7 +181,7 @@ fn git_repo(
     if !url_status.error_for_status().is_ok() {
         // TODO: Make it so that it doesn't loop when retrying
         println!(
-            "=> \x1b[31;1mPackage not found in repo:\x1b[0m {} \n\x1b[33;1m=> Trying backup repo..\x1b[0m (https://archlinux.org/)",
+            "=> \x1b[31;1mERR:\x1b[0m Package not found in repo: {}\n=> \x1b[33;1mTRY:\x1b[0m Trying backup repo.. (https://archlinux.org/)",
             repo
         );
         let formatted_url =
@@ -190,18 +195,20 @@ fn git_repo(
             "https://gitlab.archlinux.org/archlinux/packaging/",
         )?;
     } else {
-        println!("=> \x1b[32;1mUrl returned OK!\x1b[0m");
+        println!("=> \x1b[32;1mSUC:\x1b[0m Url returned OK!");
 
         println!(
-            "=> \x1b[33;1mCloning {} into {}..\x1b[0m",
+            "=> \x1b[33;1mTRY:\x1b[0m Cloning {} into {}..",
             url,
             destination.to_string_lossy()
         );
 
         if destination.exists() {
-            println!("=> Destination already exists..\n=> Deleting directory in 5 seconds..");
+            println!(
+                "=> \x1b[31;1mERR:\x1b[0m Destination already exists..\n=> \x1b[33;1mTRY:\x1b[0m Deleting directory in 2 seconds.."
+            );
 
-            sleep(Duration::from_secs_f32(5.0));
+            sleep(Duration::from_secs_f32(2.0));
 
             remove_dir_all(destination).expect("Failed to remove destination..");
 
@@ -210,11 +217,14 @@ fn git_repo(
                     let mut dir_work = repo.workdir();
                     let repo_path = dir_work.get_or_insert_with(|| Path::new("/tmp"));
 
-                    println!("=> \x1b[32;1mSucessfully cloned: {:?}\x1b[0m", repo_path);
+                    println!(
+                        "=> \x1b[32;1mSUC:\x1b[0m Successfully cloned: {:?}",
+                        repo_path
+                    );
 
                     install(&repo_path)?;
                 }
-                Err(e) => panic!("=> Failed to clone: {}", e),
+                Err(e) => panic!("=> \x1b[31;1mERR:\x1b[0m Failed to clone: {}", e),
             };
         } else {
             match Repository::clone(url, destination) {
@@ -222,11 +232,14 @@ fn git_repo(
                     let mut dir_work = repo.workdir();
                     let repo_path = dir_work.get_or_insert_with(|| Path::new("/tmp"));
 
-                    println!("=> \x1b[32;1mSucessfully cloned: {:?}\x1b[0m", repo_path);
+                    println!(
+                        "=> \x1b[32;1mSUC:\x1b[0m Successfully cloned: {:?}",
+                        repo_path
+                    );
 
                     install(&repo_path)?;
                 }
-                Err(e) => panic!("=> Failed to clone: {}", e),
+                Err(e) => panic!("=> \x1b[31;1mERR:\x1b[0m Failed to clone: {}", e),
             };
         }
     }
@@ -240,7 +253,9 @@ pub fn unpack(file_to_unpack: &Path, destination: &Path) {
         .extension()
         .map_or(false, |ext| ext == "gz" || ext == "xz" || ext == "zst")
     {
-        println!("=> \x1b[33;1mTar detected, unzipping with xzvf..\x1b[0;m");
+        println!(
+            "=> \x1b[1mINFO:\x1b[0m Tar detected\n=> \x1b[33;1mTRY:\x1b[0m Unzipping with xzvf..\x1b[0;m"
+        );
 
         Command::new("tar")
             .current_dir(destination)
@@ -274,7 +289,7 @@ fn install(destination: &Path) -> Result<(), Box<dyn std::error::Error>> {
         if destination.join("Makefile").exists() {
             println!("=> Found a Makefile when meson.build exists.. \n Defaulting to meson..");
         }
-        println!("=> Building with meson..");
+        println!("=> \x1b[33;1mTRY: Building with meson..");
 
         println!("=> Build directory is: {}", build_dir.to_string_lossy());
 
@@ -302,14 +317,16 @@ fn install(destination: &Path) -> Result<(), Box<dyn std::error::Error>> {
 
         println!("=> done?")
     } else if destination.join("PKGBUILD").exists() {
-        println!("=> Found PKGBUILD, building with makepkg..");
+        println!(
+            "=> \x1b[1mINFO:\x1b[0m Found PKGBUILD\n=> \x1b[33;1mTRY:\x1b[0m Building with makepkg.."
+        );
 
         compilers::pkgbuild::build(destination);
     } else {
         println!("=> No supported build files found, exiting..");
     }
 
-    println!("=> Finished installing, installed to: {inst_str}");
+    println!("=>\x1b[32;1m SUC:\x1b[0m Successfully installed to: {inst_str}!");
 
     Ok(())
 }
