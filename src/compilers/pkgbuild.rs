@@ -1,6 +1,7 @@
 // TODO: also stop redefining variables / maybe const would work here?
 // TODO: download all packages that have like 8 names in parenthesis (ghostty ghostty-terminfo)
 // TODO: new parse function that allows for newlines / cmake_options=(1 \n 2)
+// TODO: try out fakeroot stuff maybe
 
 use crate::{download, run_command};
 use regex::Regex;
@@ -49,15 +50,15 @@ fn parse(content: &str) -> ParseResult {
 fn download_pkgbuild(pkg_fn_name: &str, url: &str, content: &str, src_dir_str: &str) {
     let result: ParseResult = parse(&content);
 
-    let pkg_error: String = format!("echo '=> \x1b[1mINFO:\x1b[0m No prepare() function.'");
+    // let pkg_error: String = format!("echo '=> \x1b[1mINFO:\x1b[0m No prepare() function.'");
 
     let pkg_fn: &str = result.functions.get(pkg_fn_name).unwrap().as_str();
     let build_fn: &str = result.functions.get("build").unwrap().as_str();
-    let prepare_fn: &str = result
-        .functions
-        .get("prepare")
-        .unwrap_or(&pkg_error)
-        .as_str();
+    // let prepare_fn: &str = result
+    //     .functions
+    //     .get("prepare")
+    //     .unwrap_or(&pkg_error)
+    //     .as_str();
 
     let formatted_url: String = format_pkgbuild(url, &content, src_dir_str);
     let formatted_pkg_fn: String = format_pkgbuild(pkg_fn, &content, src_dir_str);
@@ -72,7 +73,8 @@ fn download_pkgbuild(pkg_fn_name: &str, url: &str, content: &str, src_dir_str: &
         Ok(_meow) => {
             // run_command(src_dir_str, "bash", &["-c", &formatted_prepare_fn]).expect("oopsies");
             println!("=> \x1b[32;1mSUC:\x1b[0m Running build() function!");
-            match run_command(src_dir_str, "bash", &["-c", &formatted_build_fn]) {
+            match run_command(src_dir_str, "sudo", &["bash", "-c", &formatted_build_fn]) {
+                // TODO maybe dont do sudo
                 Ok(_) => {
                     println!("=> \x1b[32;1mSUC:\x1b[0m Running package() function!");
                     run_command(src_dir_str, "sudo", &["bash", "-c", &formatted_pkg_fn])
@@ -124,38 +126,34 @@ fn make(pkgbuild_path: &Path, src_dir: &Path) {
 }
 
 fn format_archive(result: &ParseResult) -> String {
-    let archive = result
+    let archive: &str = result
         .variables
         .get("_archive")
+        .map(|s| s.as_str())
+        .unwrap_or("null");
+
+    let _pkgname: &str = result
+        .variables
+        .get("_pkgname")
         .map(|s| s.as_str())
         .unwrap_or("null");
     let pkgname: &str = result
         .variables
         .get("pkgname")
         .map(|s| s.as_str())
-        .unwrap_or("fycker n")
-        .split_once(" ")
-        .unwrap_or_default()
-        .0; // TODO
-
-    let _pkgname = result
-        .variables
-        .get("_pkgname")
-        .map(|s| s.as_str())
         .unwrap_or("null");
-
-    let pkgver = result
+    let pkgver: &str = result
         .variables
         .get("pkgver")
         .map(|s| s.as_str())
         .unwrap_or("1.0.0");
-    let _name = result
+    let _name: &str = result
         .variables
         .get("_name")
         .map(|s| s.as_str())
         .unwrap_or(pkgname);
 
-    let formatted = archive
+    let formatted: String = archive
         .replace("$pkgver", pkgver)
         .replace("$pkgname", pkgname)
         .replace("$_pkgname", _pkgname)
@@ -167,32 +165,32 @@ fn format_archive(result: &ParseResult) -> String {
 fn format_pkgbuild(input: &str, content: &str, src_dir_str: &str) -> String {
     let result: ParseResult = parse(&content);
 
-    let _pkgname = result
+    let _pkgname: &str = result
         .variables
         .get("_pkgname")
         .map(|s| s.as_str())
         .unwrap_or("null");
-    let pkgbase = result
+    let pkgbase: &str = result
         .variables
         .get("pkgbase")
         .map(|s| s.as_str())
         .unwrap_or("null");
-    let pkgname = result
+    let pkgname: &str = result
         .variables
         .get("pkgname")
         .map(|s| s.as_str())
         .unwrap_or("null");
-    let pkgver = result
+    let pkgver: &str = result
         .variables
         .get("pkgver")
         .map(|s| s.as_str())
         .unwrap_or("1.0.0");
-    let _name = result
+    let _name: &str = result
         .variables
         .get("_name")
         .map(|s| s.as_str())
         .unwrap_or(pkgname);
-    let pkg_url = result
+    let pkg_url: &str = result
         .variables
         .get("url")
         .map(|s| s.as_str())
