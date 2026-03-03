@@ -17,4 +17,3 @@
 * support for .rpm
 * support for .deb
 * search functionality
-* read pkgbuild to figure out the zip url
