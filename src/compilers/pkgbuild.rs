@@ -4,7 +4,11 @@
 
 use crate::{download, run_command};
 use regex::Regex;
-use std::{collections::HashMap, fs, path::Path};
+use std::{
+    collections::HashMap,
+    fs,
+    path::{Path, PathBuf},
+};
 
 #[derive(Debug, Default)]
 struct ParseResult {
@@ -66,7 +70,7 @@ fn download_pkgbuild(
     //     .get("prepare")
     //     .unwrap_or(&pkg_error)
     //     .as_str();
-    let pkgbase = result
+    let pkgbase: &str = result
         .variables
         .get("pkgbase")
         .map(|s| s.as_str())
@@ -80,7 +84,7 @@ fn download_pkgbuild(
     // TODO: run_commmand with this panics??
 
     let formatted_name: &str = formatted_url.rsplit_once("/").unwrap().1;
-    let formatted_path = Path::new(src_dir_str).join(formatted_name);
+    let formatted_path: PathBuf = Path::new(src_dir_str).join(formatted_name);
 
     match download(&formatted_url, &formatted_path) {
         Ok(_meow) => {
@@ -102,13 +106,13 @@ fn download_pkgbuild(
 
 fn make(pkgbuild_path: &Path, src_dir: &Path) {
     let content = fs::read_to_string(pkgbuild_path).unwrap();
-    let src_dir_str = src_dir.to_str().expect("failed");
+    let src_dir_str: &str = src_dir.to_str().expect("failed");
 
-    let result = parse(&content);
+    let result: ParseResult = parse(&content);
 
     let url: &str = &result.url.expect("Failed");
 
-    let pkg_depends = result
+    let pkg_depends: &str = result
         .variables
         .get("deps")
         .map(|s| s.as_str())
@@ -141,8 +145,6 @@ fn make(pkgbuild_path: &Path, src_dir: &Path) {
 
     for i in pkgnames.iter() {
         let formatted_pkgname = format_pkgbuild(i, &content, src_dir_str, i);
-
-        println!("{formatted_pkgname}");
 
         let pkg_fn_name;
         let fmt_name = format!("package_{formatted_pkgname}");
