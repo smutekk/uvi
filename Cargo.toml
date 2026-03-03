@@ -1,7 +1,7 @@
 [package]
 edition = "2024"
 name = "uvi"
-version = "0.1.2"
+version = "0.1.3"
 authors = ["kkettums"]
 
 [dependencies]
