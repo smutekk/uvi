@@ -21,6 +21,7 @@ pub fn build(src_dir: &Path) {
 }
 
 fn parse(content: &str) -> ParseResult {
+    // TODO: iterate over names
     let mut result = ParseResult::default();
 
     let url_re =
@@ -35,8 +36,9 @@ fn parse(content: &str) -> ParseResult {
     for caps in kv_re.captures_iter(content) {
         let key = caps["key"].to_string();
         let value = caps["value"].trim().to_string();
-        result.variables.insert(key, value);
+        result.variables.insert(key, value); //TODO: am i slow?
     }
+
     let func_re = Regex::new(r"(?m)^(?P<name>\w+)\s*\(\s*\)\s*\{(?P<body>(?s).*?)\n\}").unwrap();
     for caps in func_re.captures_iter(content) {
         let name = caps["name"].to_string();
@@ -47,7 +49,13 @@ fn parse(content: &str) -> ParseResult {
     result
 }
 
-fn download_pkgbuild(pkg_fn_name: &str, url: &str, content: &str, src_dir_str: &str) {
+fn download_pkgbuild(
+    pkg_fn_name: &str,
+    url: &str,
+    content: &str,
+    src_dir_str: &str,
+    pkgname: &str,
+) {
     let result: ParseResult = parse(&content);
 
     // let pkg_error: String = format!("echo '=> \x1b[1mINFO:\x1b[0m No prepare() function.'");
@@ -60,9 +68,9 @@ fn download_pkgbuild(pkg_fn_name: &str, url: &str, content: &str, src_dir_str: &
     //     .unwrap_or(&pkg_error)
     //     .as_str();
 
-    let formatted_url: String = format_pkgbuild(url, &content, src_dir_str);
-    let formatted_pkg_fn: String = format_pkgbuild(pkg_fn, &content, src_dir_str);
-    let formatted_build_fn: String = format_pkgbuild(build_fn, &content, src_dir_str);
+    let formatted_url: String = format_pkgbuild(url, &content, src_dir_str, pkgname);
+    let formatted_pkg_fn: String = format_pkgbuild(pkg_fn, &content, src_dir_str, pkgname);
+    let formatted_build_fn: String = format_pkgbuild(build_fn, &content, src_dir_str, pkgname);
     // let formatted_prepare_fn = format_pkgbuild(prepare_fn, &content, src_dir_str);
     // TODO: run_commmand with this panics??
 
@@ -95,37 +103,43 @@ fn make(pkgbuild_path: &Path, src_dir: &Path) {
 
     let url: &str = &result.url.expect("Failed");
 
-    let pkgname: &str = result
+    let e_pkgname = result // conv to str slice and specify type
         .variables
         .get("pkgname")
         .map(|s| s.as_str())
         .unwrap_or("null n")
-        .split_once(" ")
-        .unwrap_or_default()
-        .0; // TODO
+        .replace(")", "") // TODO: fix this
+        .replace("(", "");
 
-    let formatted_pkgname = format_pkgbuild(pkgname, &content, src_dir_str);
+    let pkgnames: Vec<&str> = Vec::from_iter(e_pkgname.splitn(32usize, " ")); // TODO: resize;
 
-    let pkg_fn_name;
-    let fmt_name = format!("package_{formatted_pkgname}");
+    for i in pkgnames.iter() {
+        let formatted_pkgname = format_pkgbuild(i, &content, src_dir_str, i);
 
-    if let Some(_pkg) = result.functions.get("package") {
-        println!("=> \x1b[32;1mSUC:\x1b[0m Found package()!");
-        pkg_fn_name = "package";
+        println!("{formatted_pkgname}");
 
-        download_pkgbuild(pkg_fn_name, url, &content, src_dir_str);
-    } else {
-        println!(
-            "=> \x1b[33;1mTRY:\x1b[0m Trying package_{}()",
-            formatted_pkgname
-        );
-        pkg_fn_name = &fmt_name;
+        let pkg_fn_name;
+        let fmt_name = format!("package_{formatted_pkgname}");
+        println!(" FORMATTED!");
 
-        download_pkgbuild(pkg_fn_name, url, &content, src_dir_str);
+        if let Some(_pkg) = result.functions.get("package") {
+            println!("=> \x1b[32;1mSUC:\x1b[0m Found package()!");
+            pkg_fn_name = "package";
+
+            download_pkgbuild(pkg_fn_name, url, &content, src_dir_str, i);
+        } else {
+            println!(
+                "=> \x1b[33;1mTRY:\x1b[0m Trying package_{}()",
+                formatted_pkgname
+            );
+            pkg_fn_name = &fmt_name;
+
+            download_pkgbuild(pkg_fn_name, url, &content, src_dir_str, i);
+        }
     }
 }
 
-fn format_archive(result: &ParseResult) -> String {
+fn format_archive(result: &ParseResult, pkgname: &str) -> String {
     let archive: &str = result
         .variables
         .get("_archive")
@@ -135,11 +149,6 @@ fn format_archive(result: &ParseResult) -> String {
     let _pkgname: &str = result
         .variables
         .get("_pkgname")
-        .map(|s| s.as_str())
-        .unwrap_or("null");
-    let pkgname: &str = result
-        .variables
-        .get("pkgname")
         .map(|s| s.as_str())
         .unwrap_or("null");
     let pkgver: &str = result
@@ -162,7 +171,7 @@ fn format_archive(result: &ParseResult) -> String {
     formatted
 }
 
-fn format_pkgbuild(input: &str, content: &str, src_dir_str: &str) -> String {
+fn format_pkgbuild(input: &str, content: &str, src_dir_str: &str, pkgname: &str) -> String {
     let result: ParseResult = parse(&content);
 
     let _pkgname: &str = result
@@ -173,11 +182,6 @@ fn format_pkgbuild(input: &str, content: &str, src_dir_str: &str) -> String {
     let pkgbase: &str = result
         .variables
         .get("pkgbase")
-        .map(|s| s.as_str())
-        .unwrap_or("null");
-    let pkgname: &str = result
-        .variables
-        .get("pkgname")
         .map(|s| s.as_str())
         .unwrap_or("null");
     let pkgver: &str = result
@@ -201,7 +205,7 @@ fn format_pkgbuild(input: &str, content: &str, src_dir_str: &str) -> String {
         .replace("$pkgver", pkgver)
         .replace("$pkgname", pkgname)
         .replace("$_pkgname", _pkgname)
-        .replace("$_archive", &format_archive(&result))
+        .replace("$_archive", &format_archive(&result, pkgname))
         .replace("$pkgbase", pkgbase)
         .replace("$_name", _name)
         .replace("$url", pkg_url)
