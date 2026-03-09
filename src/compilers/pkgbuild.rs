@@ -21,10 +21,11 @@ pub fn build(src_dir: &Path) {
     let pkgbuild_path = src_dir.join("PKGBUILD");
 
     make(&pkgbuild_path, &src_dir);
+
+    println!("=> \x1b[32;1mSUC:\x1b[0m Finished installing package!");
 }
 
 fn parse(content: &str) -> ParseResult {
-    // TODO: iterate over names
     let mut result = ParseResult::default();
 
     let url_re =
@@ -39,7 +40,7 @@ fn parse(content: &str) -> ParseResult {
     for caps in kv_re.captures_iter(content) {
         let key = caps["key"].to_string();
         let value = caps["value"].trim().to_string();
-        result.variables.insert(key, value); //TODO: am i slow?
+        result.variables.insert(key, value); //TODO: allow for newlines
     }
 
     let func_re = Regex::new(r"(?m)^(?P<name>\w+)\s*\(\s*\)\s*\{(?P<body>(?s).*?)\n\}").unwrap();
@@ -80,11 +81,13 @@ fn download_pkgbuild(
         format_pkgbuild(url, &content, src_dir_str, pkgname).replace("$pkgbase", pkgbase); // TODO: FUCK THIS
     let formatted_pkg_fn: String = format_pkgbuild(pkg_fn, &content, src_dir_str, pkgname);
     let formatted_build_fn: String = format_pkgbuild(build_fn, &content, src_dir_str, pkgname);
-    // let formatted_prepare_fn = format_pkgbuild(prepare_fn, &content, src_dir_str);
+    // let formatted_prepare_fn = format_pkgbuild(prepare_fn, &content, src_dir_str, pkgname);
     // TODO: run_commmand with this panics??
 
     let formatted_name: &str = formatted_url.rsplit_once("/").unwrap().1;
     let formatted_path: PathBuf = Path::new(src_dir_str).join(formatted_name);
+
+    println!("URL: {}", formatted_url);
 
     match download(&formatted_url, &formatted_path) {
         Ok(_meow) => {
@@ -111,15 +114,6 @@ fn make(pkgbuild_path: &Path, src_dir: &Path) {
     let result: ParseResult = parse(&content);
 
     let url: &str = &result.url.expect("Failed");
-
-    let pkg_depends: &str = result
-        .variables
-        .get("deps")
-        .map(|s| s.as_str())
-        .unwrap_or("null");
-
-    println!("{pkg_depends}");
-
     let mut e_pkgname = result // conv to str slice and specify type
         .variables
         .get("pkgname")
@@ -138,31 +132,39 @@ fn make(pkgbuild_path: &Path, src_dir: &Path) {
             .unwrap_or("no")
             .to_string();
     } else {
-        println!("=> \x1b[1mINFO:\x1b[0m Using pkgname..")
+        println!("=> \x1b[1mINFO:\x1b[0m Using pkgname..");
+
+        println!("{}", e_pkgname);
     }
 
-    let pkgnames: Vec<&str> = Vec::from_iter(e_pkgname.splitn(32usize, " ")); // TODO: resize;
+    let pkgnames: Vec<&str> = Vec::from_iter(e_pkgname.splitn(0usize, " ")); // TODO: resize
 
-    for i in pkgnames.iter() {
-        let formatted_pkgname = format_pkgbuild(i, &content, src_dir_str, i);
+    println!("{:#?}", pkgnames); // empty
 
-        let pkg_fn_name;
-        let fmt_name = format!("package_{formatted_pkgname}");
+    if pkgnames.is_empty() {
+        for i in pkgnames.iter() {
+            let formatted_pkgname = format_pkgbuild(i, &content, src_dir_str, i);
 
-        if let Some(_pkg) = result.functions.get("package") {
-            println!("=> \x1b[32;1mSUC:\x1b[0m Found package()!");
-            pkg_fn_name = "package";
+            let pkg_fn_name;
+            let fmt_name = format!("package_{formatted_pkgname}");
 
-            download_pkgbuild(pkg_fn_name, url, &content, src_dir_str, i);
-        } else {
-            println!(
-                "=> \x1b[33;1mTRY:\x1b[0m Trying package_{}()",
-                formatted_pkgname
-            );
-            pkg_fn_name = &fmt_name;
+            if let Some(_pkg) = result.functions.get("package") {
+                println!("=> \x1b[32;1mSUC:\x1b[0m Found package()!");
+                pkg_fn_name = "package";
 
-            download_pkgbuild(pkg_fn_name, url, &content, src_dir_str, i);
+                download_pkgbuild(pkg_fn_name, url, &content, src_dir_str, i);
+            } else {
+                println!(
+                    "=> \x1b[33;1mTRY:\x1b[0m Trying package_{}()",
+                    formatted_pkgname
+                );
+                pkg_fn_name = &fmt_name;
+
+                download_pkgbuild(pkg_fn_name, url, &content, src_dir_str, i);
+            }
         }
+    } else {
+        println!("NO PKGVEC")
     }
 }
 
