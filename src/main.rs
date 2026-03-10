@@ -1,6 +1,6 @@
 // TODO: Check if targetted download is > current, if so; ask user confirmation adn then replace
 // TODO: get pkg-conf working!!
-// TODO: --reponame (--void, --arch, --redhat)
+// TODO: --reponame (--void, --arch, --fedora)
 
 use clap::Parser;
 use git2::Repository;
